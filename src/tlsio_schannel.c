@@ -108,6 +108,9 @@ static void on_underlying_io_close_complete(void* context)
         {
             tls_io_instance->on_io_close_complete(tls_io_instance->on_io_close_complete_context);
         }
+
+        /* Free security context resources corresponding to creation with open */
+        DeleteSecurityContext(&tls_io_instance->security_context);
     }
 }
 
@@ -119,37 +122,45 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT io_open
         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
         indicate_error(tls_io_instance);
     }
-    else
+    else 
     {
         SecBuffer init_security_buffers[2];
         ULONG context_attributes;
         SECURITY_STATUS status;
         SCHANNEL_CRED auth_data;
 
-        auth_data.dwVersion = SCHANNEL_CRED_VERSION;
-        auth_data.cCreds = 0;
-        auth_data.paCred = NULL;
-        auth_data.hRootStore = NULL;
-        auth_data.cSupportedAlgs = 0;
-        auth_data.palgSupportedAlgs = NULL;
-        auth_data.grbitEnabledProtocols = 0;
-        auth_data.dwMinimumCipherStrength = 0;
-        auth_data.dwMaximumCipherStrength = 0;
-        auth_data.dwSessionLifespan = 0;
-        auth_data.dwFlags = SCH_USE_STRONG_CRYPTO;
-        auth_data.dwCredFormat = 0;
-
-        status = AcquireCredentialsHandle(NULL, UNISP_NAME, SECPKG_CRED_OUTBOUND, NULL,
-            &auth_data, NULL, NULL, &tls_io_instance->credential_handle, NULL);
-        if (status != SEC_E_OK)
+        /* Lazily aquire on first open completion */
+        if (!tls_io_instance->credential_handle_allocated)
         {
-            tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
-            indicate_error(tls_io_instance);
+            auth_data.dwVersion = SCHANNEL_CRED_VERSION;
+            auth_data.cCreds = 0;
+            auth_data.paCred = NULL;
+            auth_data.hRootStore = NULL;
+            auth_data.cSupportedAlgs = 0;
+            auth_data.palgSupportedAlgs = NULL;
+            auth_data.grbitEnabledProtocols = 0;
+            auth_data.dwMinimumCipherStrength = 0;
+            auth_data.dwMaximumCipherStrength = 0;
+            auth_data.dwSessionLifespan = 0;
+            auth_data.dwFlags = SCH_USE_STRONG_CRYPTO;
+            auth_data.dwCredFormat = 0;
+
+            status = AcquireCredentialsHandle(NULL, UNISP_NAME, SECPKG_CRED_OUTBOUND, NULL,
+                &auth_data, NULL, NULL, &tls_io_instance->credential_handle, NULL);
+
+            if (status != SEC_E_OK)
+            {
+                tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
+                indicate_error(tls_io_instance);
+            }
+            else
+            {
+                tls_io_instance->credential_handle_allocated = true;
+            }
         }
-        else
-        {
-            tls_io_instance->credential_handle_allocated = true;
 
+        if (tls_io_instance->credential_handle_allocated)
+        {
             init_security_buffers[0].cbBuffer = 0;
             init_security_buffers[0].BufferType = SECBUFFER_TOKEN;
             init_security_buffers[0].pvBuffer = NULL;
@@ -390,6 +401,8 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     {
                         LogError("[%#x]", status);
                     }
+
+                    indicate_error(tls_io_instance);
                     break;
                 }
                 }
@@ -600,6 +613,7 @@ void tlsio_schannel_destroy(CONCRETE_IO_HANDLE tls_io)
         if (tls_io_instance->credential_handle_allocated)
         {
             (void)FreeCredentialHandle(&tls_io_instance->credential_handle);
+            tls_io_instance->credential_handle_allocated = false;
         }
 
         if (tls_io_instance->received_bytes != NULL)
@@ -835,7 +849,15 @@ int tlsio_schannel_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, 
     else
     {
         TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
-        result = xio_setoption(tls_io_instance->socket_io, optionName, value);
+
+        if (tls_io_instance->socket_io == NULL)
+        {
+            result = __LINE__;
+        }
+        else
+        {
+            result = xio_setoption(tls_io_instance->socket_io, optionName, value);
+        }
     }
 
     return result;

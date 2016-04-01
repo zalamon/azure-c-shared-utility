@@ -58,10 +58,11 @@ COND_RESULT Condition_Wait(COND_HANDLE handle, LOCK_HANDLE lock, int timeout_mil
         {
             struct xtime tm;
             int wait_result;
-            time_t now = get_time(NULL);
+            xtime_get(&tm, TIME_UTC);
 
-            tm.sec = (unsigned long)get_difftime(now, (time_t)0) + (timeout_milliseconds / 1000);
-            tm.nsec = (timeout_milliseconds % 1000) * 1000000L;
+            tm.sec += (timeout_milliseconds / 1000);
+            tm.nsec += (timeout_milliseconds % 1000) * 1000000L;
+
             wait_result = cnd_timedwait((cnd_t *)handle, (mtx_t*)lock, &tm);
             if (wait_result == thrd_timedout)
             {
