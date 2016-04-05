@@ -12,7 +12,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include "xio.h"
-#include "iot_logging.h"
 
 extern int tlsio_openssl_init(void);
 extern void tlsio_openssl_deinit(void);
