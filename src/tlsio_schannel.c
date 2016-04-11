@@ -448,19 +448,20 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     else
                     {
                         size_t i;
-                        for (i = 0; i < security_buffers[1].cbBuffer; i++)
-                        {
-                            LOG(tls_io_instance->logger_log, 0, "<-%02x ", ((unsigned char*)security_buffers[1].pvBuffer)[i]);
-                        }
+                        //    for (i = 0; i < security_buffers[1].cbBuffer; i++)
+                        //    {
+                        //        LOG(tls_io_instance->logger_log, 0, "%02x ", ((unsigned char*)security_buffers[1].pvBuffer)[i]);
+                        //    }
+                        //    LOG(tls_io_instance->logger_log, LOG_LINE, "");
 
-                        /* notify of the received data */
+                            /* notify of the received data */
                         if (tls_io_instance->on_bytes_received != NULL)
                         {
                             tls_io_instance->on_bytes_received(tls_io_instance->on_bytes_received_context, security_buffers[1].pvBuffer, security_buffers[1].cbBuffer);
                         }
 
                         consumed_bytes = tls_io_instance->received_byte_count;
-                        
+
                         LOG(tls_io_instance->logger_log, LOG_LINE, "%d consumed", tls_io_instance->received_byte_count);
 
                         for (i = 0; i < sizeof(security_buffers) / sizeof(security_buffers[0]); i++)
@@ -484,6 +485,25 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                             indicate_error(tls_io_instance);
                         }
                     }
+                    break;
+                default:
+                    {
+                        LPVOID srcText = NULL;
+                        if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                            status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)srcText, 0, NULL) > 0)
+                        {
+                            LogError("[%#x] %s", status, (LPTSTR)srcText);
+                            LocalFree(srcText);
+                        }
+                        else
+                        {
+                            LogError("[%#x]", status);
+                        }
+
+                        tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
+                        indicate_error(tls_io_instance);
+                    }
+                    break;
                 }
             }
             else
