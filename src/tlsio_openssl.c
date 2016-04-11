@@ -11,10 +11,10 @@
 #include "openssl/crypto.h"
 #include <stdio.h>
 #include <stdbool.h>
-#include "tlsio.h"
-#include "tlsio_openssl.h"
-#include "socketio.h"
-#include "xlogging.h"
+#include "azure_c_shared_utility/tlsio.h"
+#include "azure_c_shared_utility/tlsio_openssl.h"
+#include "azure_c_shared_utility/socketio.h"
+#include "azure_c_shared_utility/xlogging.h"
 
 typedef enum TLSIO_STATE_TAG
 {
@@ -402,7 +402,7 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters, LOGGER_LOG l
                     result->out_bio = BIO_new(BIO_s_mem());
                     if (result->out_bio == NULL)
                     {
-                        (void)BIO_free(result->out_bio);
+                        (void)BIO_free(result->in_bio);
                         SSL_CTX_free(result->ssl_context);
                         free(result);
                         result = NULL;
@@ -436,6 +436,15 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters, LOGGER_LOG l
                             }
                             else
                             {
+                                SSL_CTX_set_verify(result->ssl_context, SSL_VERIFY_PEER, NULL);
+
+                                /* Specifies that the default locations for which CA certificates are loaded should be used. */
+                                if (SSL_CTX_set_default_verify_paths(result->ssl_context) != 1)
+                                {
+                                    /* This is only a warning to the user. They can still specify the certificate via SetOption. */
+                                    LogInfo("WARNING: Unable to specify the default location for CA certificates on this platform.\r\n");
+                                }
+
                                 result->ssl = SSL_new(result->ssl_context);
                                 if (result->ssl == NULL)
                                 {
@@ -630,6 +639,9 @@ void tlsio_openssl_dowork(CONCRETE_IO_HANDLE tls_io)
 int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, const void* value)
 {
     int result;
+    X509_STORE* cert_store;
+    BIO* cert_memory_bio;
+    X509* xcert;
 
     if (tls_io == NULL || optionName == NULL)
     {
@@ -639,13 +651,54 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
     {
         TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
 
-        if (tls_io_instance->underlying_io == NULL)
+        if (strcmp("TrustedCerts", optionName) == 0)
         {
-            result = __LINE__;
+            cert_store = SSL_CTX_get_cert_store(tls_io_instance->ssl_context);
+            if (cert_store == NULL)
+            {
+                result = __LINE__;
+            }
+            else
+            {
+                cert_memory_bio = BIO_new_mem_buf((void*)value, -1);
+
+                if (cert_memory_bio == NULL)
+                {
+                    result = __LINE__;
+                }
+                else
+                {
+                    xcert = PEM_read_bio_X509(cert_memory_bio, NULL, NULL, NULL);
+
+                    if (xcert == NULL) {
+                        result = __LINE__;
+                    }
+                    else
+                    {
+                        if (X509_STORE_add_cert(cert_store, xcert) != 1)
+                        {
+                            X509_free(xcert);
+                            result = __LINE__;
+                        }
+                        else
+                        {
+                            result = 0;
+                        }
+                    }
+                    BIO_free(cert_memory_bio);
+                }
+            }
         }
         else
         {
-            result = xio_setoption(tls_io_instance->underlying_io, optionName, value);
+            if (tls_io_instance->underlying_io == NULL)
+            {
+                result = __LINE__;
+            }
+            else
+            {
+                result = xio_setoption(tls_io_instance->underlying_io, optionName, value);
+            }
         }
     }
 
