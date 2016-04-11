@@ -570,14 +570,14 @@ HTTPAPI_RESULT HTTPAPI_ExecuteRequest(HTTP_HANDLE handle, HTTPAPI_REQUEST_TYPE r
                                                                 {
                                                                     if (BUFFER_u_char(responseContent) != NULL)
                                                                     {
-                                                                        LogInfo("Buffer Content:\r\n %.*s\r\n", BUFFER_length(responseContent), BUFFER_u_char(responseContent));
+                                                                        LogInfo("Buffer Content:\r\n %.*s\r\n", (int)BUFFER_length(responseContent), BUFFER_u_char(responseContent));
                                                                     }
                                                                 }
                                                                 else if (useToReadAllResponse != NULL)
                                                                 {
                                                                     if (BUFFER_u_char(useToReadAllResponse) != NULL)
                                                                     {
-                                                                        LogInfo("Buffer Content:\r\n %.*s\r\n", BUFFER_length(useToReadAllResponse), BUFFER_u_char(useToReadAllResponse));
+                                                                        LogInfo("Buffer Content:\r\n %.*s\r\n", (int)BUFFER_length(useToReadAllResponse), BUFFER_u_char(useToReadAllResponse));
                                                                     }
                                                                     BUFFER_delete(useToReadAllResponse);
                                                                 }

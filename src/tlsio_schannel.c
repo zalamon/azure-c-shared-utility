@@ -228,6 +228,8 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
     size_t consumed_bytes;
 
+    LOG(tls_io_instance->logger_log, LOG_LINE, "%d received on tls_schannel", size);
+
     if (resize_receive_buffer(tls_io_instance, tls_io_instance->received_byte_count + size) == 0)
     {
         memcpy(tls_io_instance->received_bytes + tls_io_instance->received_byte_count, buffer, size);
@@ -242,17 +244,10 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
             tls_io_instance->needed_bytes -= size;
         }
 
-        switch (tls_io_instance->tlsio_state)
+        /* Drain what we received */
+        while (tls_io_instance->needed_bytes == 0)
         {
-        default:
-            break;
-
-        case TLSIO_STATE_ERROR:
-            break;
-
-        case TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT:
-        {
-            if (tls_io_instance->needed_bytes == 0)
+            if (tls_io_instance->tlsio_state == TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT)
             {
                 SecBuffer input_buffers[2];
                 SecBuffer output_buffers[2];
@@ -322,8 +317,8 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     }
                     tls_io_instance->received_byte_count -= consumed_bytes;
 
-                    /* set the needed bytes to 1, to get on the next byte how many we actually need */
-                    tls_io_instance->needed_bytes = 1;
+                    /* if nothing more to consume, set the needed bytes to 1, to get on the next byte how many we actually need */
+                    tls_io_instance->needed_bytes = tls_io_instance->received_byte_count == 0 ? 1 : 0;
 
                     if (set_receive_buffer(tls_io_instance, tls_io_instance->needed_bytes + tls_io_instance->received_byte_count) != 0)
                     {
@@ -364,8 +359,8 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         }
                         tls_io_instance->received_byte_count -= consumed_bytes;
 
-                        /* set the needed bytes to 1, to get on the next byte how many we actually need */
-                        tls_io_instance->needed_bytes = 1;
+                        /* if nothing more to consume, set the needed bytes to 1, to get on the next byte how many we actually need */
+                        tls_io_instance->needed_bytes = tls_io_instance->received_byte_count == 0 ? 1 : 0;
 
                         if (set_receive_buffer(tls_io_instance, tls_io_instance->needed_bytes + tls_io_instance->received_byte_count) != 0)
                         {
@@ -389,29 +384,26 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     }
                     break;
                 default:
-                {
-                    LPVOID srcText = NULL;
-                    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                        status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)srcText, 0, NULL) > 0)
                     {
-                        LogError("[%#x] %s", status, (LPTSTR)srcText);
-                        LocalFree(srcText);
-                    }
-                    else
-                    {
-                        LogError("[%#x]", status);
-                    }
+                        LPVOID srcText = NULL;
+                        if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                            status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)srcText, 0, NULL) > 0)
+                        {
+                            LogError("[%#x] %s", status, (LPTSTR)srcText);
+                            LocalFree(srcText);
+                        }
+                        else
+                        {
+                            LogError("[%#x]", status);
+                        }
 
-                    indicate_error(tls_io_instance);
+                        tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
+                        indicate_error(tls_io_instance);
+                    }
                     break;
                 }
-                }
             }
-            break;
-        }
-        case TLSIO_STATE_OPEN:
-        {
-            if (tls_io_instance->needed_bytes == 0)
+            else if (tls_io_instance->tlsio_state == TLSIO_STATE_OPEN)
             {
                 SecBuffer security_buffers[4];
                 SecBufferDesc security_buffers_desc;
@@ -468,6 +460,9 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         }
 
                         consumed_bytes = tls_io_instance->received_byte_count;
+                        
+                        LOG(tls_io_instance->logger_log, LOG_LINE, "%d consumed", tls_io_instance->received_byte_count);
+
                         for (i = 0; i < sizeof(security_buffers) / sizeof(security_buffers[0]); i++)
                         {
                             /* Any extra bytes left over or did we fully consume the receive buffer? */
@@ -480,8 +475,8 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         }
                         tls_io_instance->received_byte_count -= consumed_bytes;
 
-                        /* set the needed bytes to 1, to get on the next byte how many we actually need */
-                        tls_io_instance->needed_bytes = 1;
+                        /* if nothing more to consume, set the needed bytes to 1, to get on the next byte how many we actually need */
+                        tls_io_instance->needed_bytes = tls_io_instance->received_byte_count == 0 ? 1 : 0;
 
                         if (set_receive_buffer(tls_io_instance, tls_io_instance->needed_bytes + tls_io_instance->received_byte_count) != 0)
                         {
@@ -489,11 +484,15 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                             indicate_error(tls_io_instance);
                         }
                     }
-                    break;
                 }
             }
+            else
+            {
+                /* Received data in error or other state */
+                break;
+            }
         }
-        }
+    
     }
 }
 
