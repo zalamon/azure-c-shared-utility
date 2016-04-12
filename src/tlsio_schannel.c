@@ -447,13 +447,16 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     else
                     {
                         size_t i;
-                        //    for (i = 0; i < security_buffers[1].cbBuffer; i++)
-                        //    {
-                        //        LOG(tls_io_instance->logger_log, 0, "%02x ", ((unsigned char*)security_buffers[1].pvBuffer)[i]);
-                        //    }
-                        //    LOG(tls_io_instance->logger_log, LOG_LINE, "");
+                        if (tls_io_instance->logger_log)
+                        {
+                            for (i = 0; i < security_buffers[1].cbBuffer; i++)
+                            {
+                                LOG(tls_io_instance->logger_log, 0, "-> %02x ", ((unsigned char*)security_buffers[1].pvBuffer)[i]);
+                            }
+                            LOG(tls_io_instance->logger_log, LOG_LINE, "");
+                        }
 
-                            /* notify of the received data */
+                        /* notify of the received data */
                         if (tls_io_instance->on_bytes_received != NULL)
                         {
                             tls_io_instance->on_bytes_received(tls_io_instance->on_bytes_received_context, security_buffers[1].pvBuffer, security_buffers[1].cbBuffer);
