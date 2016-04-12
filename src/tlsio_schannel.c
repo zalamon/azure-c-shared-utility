@@ -109,14 +109,14 @@ static void on_underlying_io_close_complete(void* context)
             tls_io_instance->on_io_close_complete(tls_io_instance->on_io_close_complete_context);
         }
 
-        /* Free security context resources corresponding to creation with open 
+        /* Free security context resources corresponding to creation with open */
         DeleteSecurityContext(&tls_io_instance->security_context);
 
         if (tls_io_instance->credential_handle_allocated)
         {
             (void)FreeCredentialHandle(&tls_io_instance->credential_handle);
             tls_io_instance->credential_handle_allocated = false;
-        }*/
+        }
     }
 }
 
