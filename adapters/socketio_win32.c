@@ -7,10 +7,11 @@
 #endif
 #include <stddef.h>
 #include <stdio.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <mstcpip.h>
 #include "azure_c_shared_utility/socketio.h"
-#include "winsock2.h"
-#include "ws2tcpip.h"
-#include "windows.h"
 #include "azure_c_shared_utility/list.h"
 #include "azure_c_shared_utility/gballoc.h"
 #include "azure_c_shared_utility/iot_logging.h"
@@ -44,6 +45,7 @@ typedef struct SOCKET_IO_INSTANCE_TAG
     int port;
     IO_STATE io_state;
     LIST_HANDLE pending_io_list;
+    struct tcp_keepalive keep_alive;
 } SOCKET_IO_INSTANCE;
 
 static const IO_INTERFACE_DESCRIPTION socket_io_interface_description =
@@ -78,7 +80,7 @@ static int add_pending_io(SOCKET_IO_INSTANCE* socket_io_instance, const unsigned
         pending_socket_io->bytes = (unsigned char*)malloc(size);
         if (pending_socket_io->bytes == NULL)
         {
-            LogError("Allocation Failure: Unable to allocate pending list.\r\n");
+            LogError("Allocation Failure: Unable to allocate pending list.");
             free(pending_socket_io);
             result = __LINE__;
         }
@@ -92,7 +94,7 @@ static int add_pending_io(SOCKET_IO_INSTANCE* socket_io_instance, const unsigned
 
             if (list_add(socket_io_instance->pending_io_list, pending_socket_io) == NULL)
             {
-                LogError("Failure: Unable to add socket to pending list.\r\n");
+                LogError("Failure: Unable to add socket to pending list.");
                 free(pending_socket_io->bytes);
                 free(pending_socket_io);
                 result = __LINE__;
@@ -114,7 +116,7 @@ CONCRETE_IO_HANDLE socketio_create(void* io_create_parameters, LOGGER_LOG logger
 
     if (socket_io_config == NULL)
     {
-        LogError("Invalid argument: socket_io_config is NULL\r\n");
+        LogError("Invalid argument: socket_io_config is NULL");
         result = NULL;
     }
     else
@@ -125,7 +127,7 @@ CONCRETE_IO_HANDLE socketio_create(void* io_create_parameters, LOGGER_LOG logger
             result->pending_io_list = list_create();
             if (result->pending_io_list == NULL)
             {
-                LogError("Failure: list_create unable to create pending list.\r\n");
+                LogError("Failure: list_create unable to create pending list.");
                 free(result);
                 result = NULL;
             }
@@ -149,7 +151,7 @@ CONCRETE_IO_HANDLE socketio_create(void* io_create_parameters, LOGGER_LOG logger
 
                 if ((result->hostname == NULL) && (result->socket == INVALID_SOCKET))
                 {
-                    LogError("Failure: hostname == NULL and socket is invalid.\r\n");
+                    LogError("Failure: hostname == NULL and socket is invalid.");
                     list_destroy(result->pending_io_list);
                     free(result);
                     result = NULL;
@@ -163,12 +165,13 @@ CONCRETE_IO_HANDLE socketio_create(void* io_create_parameters, LOGGER_LOG logger
                     result->on_io_error_context = NULL;
                     result->logger_log = logger_log;
                     result->io_state = IO_STATE_CLOSED;
+                    result->keep_alive = (struct tcp_keepalive) { 0, 0, 0 };
                 }
             }
         }
         else
         {
-            LogError("Allocation Failure: SOCKET_IO_INSTANCE\r\n");
+            LogError("Allocation Failure: SOCKET_IO_INSTANCE");
         }
     }
 
@@ -214,14 +217,14 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
     SOCKET_IO_INSTANCE* socket_io_instance = (SOCKET_IO_INSTANCE*)socket_io;
     if (socket_io == NULL)
     {
-        LogError("Invalid argument: SOCKET_IO_INSTANCE is NULL\r\n");
+        LogError("Invalid argument: SOCKET_IO_INSTANCE is NULL");
         result = __LINE__;
     }
     else
     {
         if (socket_io_instance->io_state != IO_STATE_CLOSED)
         {
-            LogError("Failure: socket state is not closed.\r\n");
+            LogError("Failure: socket state is not closed.");
             result = __LINE__;
         }
         else if (socket_io_instance->socket != INVALID_SOCKET)
@@ -245,7 +248,7 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
             socket_io_instance->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
             if (socket_io_instance->socket == INVALID_SOCKET)
             {
-                LogError("Failure: socket create failure %d.\r\n", WSAGetLastError());
+                LogError("Failure: socket create failure %d.", WSAGetLastError());
                 result = __LINE__;
             }
             else
@@ -260,7 +263,7 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
                 sprintf(portString, "%u", socket_io_instance->port);
                 if (getaddrinfo(socket_io_instance->hostname, portString, &addrHint, &addrInfo) != 0)
                 {
-                    LogError("Failure: getaddrinfo failure %d.\r\n", WSAGetLastError());
+                    LogError("Failure: getaddrinfo failure %d.", WSAGetLastError());
                     (void)closesocket(socket_io_instance->socket);
                     socket_io_instance->socket = INVALID_SOCKET;
                     result = __LINE__;
@@ -271,14 +274,14 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
 
                     if (connect(socket_io_instance->socket, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) != 0)
                     {
-                        LogError("Failure: connect failure %d.\r\n", WSAGetLastError());
+                        LogError("Failure: connect failure %d.", WSAGetLastError());
                         (void)closesocket(socket_io_instance->socket);
                         socket_io_instance->socket = INVALID_SOCKET;
                         result = __LINE__;
                     }
                     else if (ioctlsocket(socket_io_instance->socket, FIONBIO, &iMode) != 0)
                     {
-                        LogError("Failure: ioctlsocket failure %d.\r\n", WSAGetLastError());
+                        LogError("Failure: ioctlsocket failure %d.", WSAGetLastError());
                         (void)closesocket(socket_io_instance->socket);
                         socket_io_instance->socket = INVALID_SOCKET;
                         result = __LINE__;
@@ -316,7 +319,7 @@ int socketio_close(CONCRETE_IO_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io_clos
 
     if (socket_io == NULL)
     {
-        LogError("Invalid argument: socket_io is NULL\r\n");
+        LogError("Invalid argument: socket_io is NULL");
         result = __LINE__;
     }
     else
@@ -355,7 +358,7 @@ int socketio_send(CONCRETE_IO_HANDLE socket_io, const void* buffer, size_t size,
         (size == 0))
     {
         /* Invalid arguments */
-        LogError("Invalid argument: send given invalid parameter\r\n");
+        LogError("Invalid argument: send given invalid parameter");
         result = __LINE__;
     }
     else
@@ -363,7 +366,7 @@ int socketio_send(CONCRETE_IO_HANDLE socket_io, const void* buffer, size_t size,
         SOCKET_IO_INSTANCE* socket_io_instance = (SOCKET_IO_INSTANCE*)socket_io;
         if (socket_io_instance->io_state != IO_STATE_OPEN)
         {
-            LogError("Failure: socket state is not opened.\r\n");
+            LogError("Failure: socket state is not opened.");
             result = __LINE__;
         }
         else
@@ -373,7 +376,7 @@ int socketio_send(CONCRETE_IO_HANDLE socket_io, const void* buffer, size_t size,
             {
                 if (add_pending_io(socket_io_instance, buffer, size, on_send_complete, callback_context) != 0)
                 {
-                    LogError("Failure: add_pending_io failed.\r\n");
+                    LogError("Failure: add_pending_io failed.");
                     result = __LINE__;
                 }
                 else
@@ -390,7 +393,7 @@ int socketio_send(CONCRETE_IO_HANDLE socket_io, const void* buffer, size_t size,
                     if (last_error != WSAEWOULDBLOCK)
                     {
                         indicate_error(socket_io_instance);
-                        LogError("Failure: sending socket failed %d.\r\n", last_error);
+                        LogError("Failure: sending socket failed %d.", last_error);
                         result = __LINE__;
                     }
                     else
@@ -398,7 +401,7 @@ int socketio_send(CONCRETE_IO_HANDLE socket_io, const void* buffer, size_t size,
                         /* queue data */
                         if (add_pending_io(socket_io_instance, buffer, size, on_send_complete, callback_context) != 0)
                         {
-                            LogError("Failure: add_pending_io failed.\r\n");
+                            LogError("Failure: add_pending_io failed.");
                             result = __LINE__;
                         }
                         else
@@ -445,7 +448,7 @@ void socketio_dowork(CONCRETE_IO_HANDLE socket_io)
                 PENDING_SOCKET_IO* pending_socket_io = (PENDING_SOCKET_IO*)list_item_get_value(first_pending_io);
                 if (pending_socket_io == NULL)
                 {
-                    LogError("Failure: retrieving socket from list\r\n");
+                    LogError("Failure: retrieving socket from list");
                     indicate_error(socket_io_instance);
                     break;
                 }
@@ -476,7 +479,7 @@ void socketio_dowork(CONCRETE_IO_HANDLE socket_io)
                     free(pending_socket_io);
                     if (list_remove(socket_io_instance->pending_io_list, first_pending_io) != 0)
                     {
-                        LogError("Failure: removing socket from list\r\n");
+                        LogError("Failure: removing socket from list");
                         indicate_error(socket_io_instance);
                     }
                 }
@@ -486,8 +489,15 @@ void socketio_dowork(CONCRETE_IO_HANDLE socket_io)
 
             while (received > 0)
             {
-                unsigned char recv_bytes[1];
-                received = recv(socket_io_instance->socket, recv_bytes, sizeof(recv_bytes), 0);
+                unsigned char* recv_bytes = malloc(RECEIVE_BYTES_VALUE);
+                if (recv_bytes == NULL)
+                {
+                    LogError("Socketio_Failure: NULL allocating input buffer.");
+                    indicate_error(socket_io_instance);
+                }
+                else
+                {
+                    received = recv(socket_io_instance->socket, recv_bytes, RECEIVE_BYTES_VALUE, 0);
                 if (received > 0)
                 {
                     int i;
@@ -507,19 +517,82 @@ void socketio_dowork(CONCRETE_IO_HANDLE socket_io)
                     int last_error = WSAGetLastError();
                     if (last_error != WSAEWOULDBLOCK && last_error != ERROR_SUCCESS)
                     {
-                        LogError("Socketio_Failure: Recieving data from endpoint: %d.\r\n", last_error);
+                        LogError("Socketio_Failure: Recieving data from endpoint: %d.", last_error);
                         indicate_error(socket_io_instance);
                     }
+                    }
+                    free(recv_bytes);
                 }
             }
         }
     }
 }
 
+static int set_keepalive(SOCKET_IO_INSTANCE* socket_io, struct tcp_keepalive* keepAlive)
+{
+    int result;
+    DWORD bytesReturned;
+
+    int err = WSAIoctl(socket_io->socket, SIO_KEEPALIVE_VALS, keepAlive,
+        sizeof(struct tcp_keepalive), NULL, 0, &bytesReturned, NULL, NULL);
+    if (err != 0)
+    {
+        LogError("Failure: setting keep-alive on the socket: %d.\r\n", err == SOCKET_ERROR ? WSAGetLastError() : err);
+        result = __LINE__;
+    }
+    else
+    {
+        socket_io->keep_alive = *keepAlive;
+        result = 0;
+    }
+
+    return result;
+}
+
 int socketio_setoption(CONCRETE_IO_HANDLE socket_io, const char* optionName, const void* value)
 {
-    /* Not implementing any options */
-    return __LINE__;
+    int result;
+
+    if (socket_io == NULL ||
+        optionName == NULL ||
+        value == NULL)
+    {
+        result = __LINE__;
+    }
+    else
+    {
+        SOCKET_IO_INSTANCE* socket_io_instance = (SOCKET_IO_INSTANCE*)socket_io;
+
+        if (strcmp(optionName, "tcp_keepalive") == 0)
+        {
+            struct tcp_keepalive keepAlive = socket_io_instance->keep_alive;
+            keepAlive.onoff = *(int *)value;
+
+            result = set_keepalive(socket_io_instance, &keepAlive);
+        }
+        else if (strcmp(optionName, "tcp_keepalive_time") == 0)
+        {
+            unsigned long kaTime = *(int *)value * 1000; // convert to ms
+            struct tcp_keepalive keepAlive = socket_io_instance->keep_alive;
+            keepAlive.keepalivetime = kaTime;
+
+            result = set_keepalive(socket_io_instance, &keepAlive);
+        }
+        else if (strcmp(optionName, "tcp_keepalive_interval") == 0)
+        {
+            unsigned long kaInterval = *(int *)value * 1000; // convert to ms
+            struct tcp_keepalive keepAlive = socket_io_instance->keep_alive;
+            keepAlive.keepaliveinterval = kaInterval;
+
+            result = set_keepalive(socket_io_instance, &keepAlive);
+        }
+        else
+        {
+            result = __LINE__;
+        }
+    }
+
+    return result;
 }
 
 const IO_INTERFACE_DESCRIPTION* socketio_get_interface_description(void)

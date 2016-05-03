@@ -10,6 +10,7 @@ set(umock_c_c_files
 ./src/umockcallrecorder.c
 ./src/umocktypename.c
 ./src/umocktypes.c
+./src/umocktypes_bool.c
 ./src/umocktypes_c.c
 ./src/umocktypes_charptr.c
 )
@@ -21,6 +22,7 @@ set(umock_c_h_files
 ./inc/umockcallrecorder.h
 ./inc/umocktypename.h
 ./inc/umocktypes.h
+./inc/umocktypes_bool.h
 ./inc/umocktypes_c.h
 ./inc/umocktypes_charptr.h
 )
@@ -31,6 +33,10 @@ IF(WIN32)
 ENDIF()
 
 add_library(umock_c ${umock_c_c_files} ${umock_c_h_files})
+
+set_target_properties(umock_c
+               PROPERTIES
+               FOLDER "test_tools") 
 
 #these are the include folders
 #the following "set" statetement exports across the project a global variable called UMOCK_C_INC_FOLDER that expands to whatever needs to included when using umock_c library
