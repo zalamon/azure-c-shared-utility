@@ -568,6 +568,8 @@ if(${use_openssl})
     )
     if(WIN32)
         include_directories($ENV{OpenSSLDir}/include)
+    elseif(APPLE)
+        include_directories( "/usr/local/opt/openssl/include" )
     endif()
 endif()
 
