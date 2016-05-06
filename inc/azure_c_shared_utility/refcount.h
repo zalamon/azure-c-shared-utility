@@ -40,12 +40,19 @@ C2(REFCOUNT_, type)
 /*and an initializer for that new type that also sets the ref count to 1. The type must not have a flexible array*/
 /*the newly allocated memory shall be free'd by free()*/
 /*and the ref counting is handled internally by the type in the _Create/ _Clone /_Destroy functions */
+    
+    
+#ifdef __APPLE__
+#define ATOMIC_TYPE atomic_int
+#else
+#define ATOMIC_TYPE uint32_t
+#endif
 
 #define DEFINE_REFCOUNT_TYPE(type)                                                                   \
 REFCOUNT_TYPE(type)                                                                                  \
 {                                                                                                    \
     type counted;                                                                                    \
-    uint32_t count;                                                                                  \
+    ATOMIC_TYPE count;                                                                               \
 };                                                                                                   \
 static type* REFCOUNT_TYPE_DECLARE_CREATE(type) (void)                                               \
 {                                                                                                    \
