@@ -255,8 +255,6 @@ TEST_FUNCTION(Condition_Deinit_Fail)
     Condition_Deinit(handle);
 }
 
-#ifndef WIN32
-
 // Tests_SRS_CONDITION_18_008: [ Condition_Init shall return NULL if it fails to allocate the CONDITION_HANDLE ]
 TEST_FUNCTION(Condition_Init_allocation_fail)
 {
@@ -274,8 +272,6 @@ TEST_FUNCTION(Condition_Init_allocation_fail)
 
     //free
 }
-
-#endif
 
 // Tests_SRS_CONDITION_18_009: [ Condition_Deinit will deallocate handle if it is not NULL ]
 TEST_FUNCTION(Condition_Deinit_deallocates_handle)

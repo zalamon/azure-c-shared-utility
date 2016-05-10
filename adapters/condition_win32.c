@@ -16,16 +16,22 @@ DEFINE_ENUM_STRINGS(COND_RESULT, COND_RESULT_VALUES);
 COND_HANDLE Condition_Init(void)
 {
     // Codes_SRS_CONDITION_18_002: [ Condition_Init shall create and return a CONDITION_HANDLE ]
-    HANDLE hWait = CreateEvent(NULL, FALSE, FALSE, NULL);
-    if (hWait == INVALID_HANDLE_VALUE)
+
+    HANDLE* cond = (HANDLE*)malloc(sizeof(HANDLE));
+
+    // Codes_SRS_CONDITION_18_008: [ Condition_Init shall return NULL if it fails to allocate the CONDITION_HANDLE ]
+    if (cond != NULL)
     {
-        // Codes_SRS_CONDITION_18_008: [ Condition_Init shall return NULL if it fails to allocate the CONDITION_HANDLE ]
-        return NULL;
+        *cond = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+        if (*cond == INVALID_HANDLE_VALUE)
+        {
+            free(cond);
+            cond = NULL;
+        }
     }
-    else
-    {
-        return (COND_HANDLE)hWait;
-    }
+
+    return (COND_HANDLE)cond;
 }
 
 COND_RESULT Condition_Post(COND_HANDLE handle)
@@ -38,7 +44,7 @@ COND_RESULT Condition_Post(COND_HANDLE handle)
     }
     else
     {
-        if (SetEvent((HANDLE)handle))
+        if (SetEvent(*(HANDLE*)handle))
         {
             // Codes_SRS_CONDITION_18_003: [ Condition_Post shall return COND_OK if it succcessfully posts the condition ]
             result = COND_OK;
@@ -73,7 +79,7 @@ COND_RESULT Condition_Wait(COND_HANDLE handle, LOCK_HANDLE lock, int timeout_mil
         Unlock(lock);
 
         // Codes_SRS_CONDITION_18_013: [ Condition_Wait shall accept relative timeouts ]
-        wait_result = WaitForSingleObject((HANDLE)handle, timeout_milliseconds);
+        wait_result = WaitForSingleObject(*(HANDLE*)handle, timeout_milliseconds);
 
         Lock(lock);
 
@@ -102,7 +108,8 @@ void Condition_Deinit(COND_HANDLE handle)
     if (handle != NULL)
     {
         // Codes_SRS_CONDITION_18_009: [ Condition_Deinit will deallocate handle if it is not NULL 
-        CloseHandle((HANDLE)handle);
+        CloseHandle(*(HANDLE*)handle);
+        free(handle);
     }
 }
 
