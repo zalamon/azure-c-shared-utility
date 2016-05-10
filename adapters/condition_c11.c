@@ -68,8 +68,9 @@ COND_RESULT Condition_Wait(COND_HANDLE handle, LOCK_HANDLE lock, int timeout_mil
             xtime_get(&tm, TIME_UTC);
 
             // Codes_SRS_CONDITION_18_013: [ Condition_Wait shall accept relative timeouts ]
+            timeout_milliseconds += (tm.nsec / 1000000L);
             tm.sec += (timeout_milliseconds / 1000);
-            tm.nsec += (timeout_milliseconds % 1000) * 1000000L;
+            tm.nsec = (timeout_milliseconds % 1000) * 1000000L;
 
             wait_result = cnd_timedwait((cnd_t *)handle, (mtx_t*)lock, &tm);
             if (wait_result == thrd_timedout)
