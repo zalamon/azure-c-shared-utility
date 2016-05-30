@@ -7,11 +7,9 @@
 #include "umocktypename.h"
 
 static size_t malloc_call_count;
-static size_t calloc_call_count;
 static size_t realloc_call_count;
 
 static size_t when_shall_malloc_fail;
-static size_t when_shall_calloc_fail;
 static size_t when_shall_realloc_fail;
 
 #ifdef __cplusplus
@@ -29,21 +27,6 @@ extern "C" {
         else
         {
             result = malloc(size);
-        }
-        return result;
-    }
-
-    void* mock_calloc(size_t nmemb, size_t size)
-    {
-        void* result;
-        calloc_call_count++;
-        if (calloc_call_count == when_shall_calloc_fail)
-        {
-            result = NULL;
-        }
-        else
-        {
-            result = calloc(nmemb, size);
         }
         return result;
     }
@@ -73,11 +56,14 @@ extern "C" {
 #endif
 
 static TEST_MUTEX_HANDLE test_mutex;
+static TEST_MUTEX_HANDLE global_mutex;
 
 BEGIN_TEST_SUITE(umocktypename_unittests)
 
 TEST_SUITE_INITIALIZE(suite_init)
 {
+    TEST_INITIALIZE_MEMORY_DEBUG(global_mutex);
+
     test_mutex = TEST_MUTEX_CREATE();
     ASSERT_IS_NOT_NULL(test_mutex);
 }
@@ -85,6 +71,7 @@ TEST_SUITE_INITIALIZE(suite_init)
 TEST_SUITE_CLEANUP(suite_cleanup)
 {
     TEST_MUTEX_DESTROY(test_mutex);
+    TEST_DEINITIALIZE_MEMORY_DEBUG(global_mutex);
 }
 
 TEST_FUNCTION_INITIALIZE(test_function_init)
@@ -94,8 +81,6 @@ TEST_FUNCTION_INITIALIZE(test_function_init)
 
     malloc_call_count = 0;
     when_shall_malloc_fail = 0;
-    calloc_call_count = 0;
-    when_shall_calloc_fail = 0;
     realloc_call_count = 0;
     when_shall_realloc_fail = 0;
 }

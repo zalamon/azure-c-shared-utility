@@ -148,11 +148,14 @@ void reset_malloc_calls(void)
 }
 
 static TEST_MUTEX_HANDLE test_mutex;
+static TEST_MUTEX_HANDLE global_mutex;
 
 BEGIN_TEST_SUITE(umocktypes_charptr_unittests)
 
 TEST_SUITE_INITIALIZE(suite_init)
 {
+    TEST_INITIALIZE_MEMORY_DEBUG(global_mutex);
+
     test_mutex = TEST_MUTEX_CREATE();
     ASSERT_IS_NOT_NULL(test_mutex);
 }
@@ -160,6 +163,7 @@ TEST_SUITE_INITIALIZE(suite_init)
 TEST_SUITE_CLEANUP(suite_cleanup)
 {
     TEST_MUTEX_DESTROY(test_mutex);
+    TEST_DEINITIALIZE_MEMORY_DEBUG(global_mutex);
 }
 
 TEST_FUNCTION_INITIALIZE(test_function_init)
@@ -354,7 +358,7 @@ TEST_FUNCTION(umocktypes_are_equal_charptr_with_string_being_different_in_case_r
 
 /* umocktypes_copy_charptr */
 
-/* Tests_SRS_UMOCKTYPES_CHARPTR_01_011: [ umocktypes_copy_charptr shall allocate a new sequence of chars by using malloc. ]*/
+/* Tests_SRS_UMOCKTYPES_CHARPTR_01_011: [ umocktypes_copy_charptr shall allocate a new sequence of chars by using umockalloc_malloc. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_012: [ The number of bytes allocated shall accomodate the string pointed to by source. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_016: [ On success umocktypes_copy_charptr shall return 0. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_014: [ umocktypes_copy_charptr shall copy the string pointed to by source to the newly allocated memory. ]*/
@@ -376,7 +380,7 @@ TEST_FUNCTION(umocktypes_copy_charptr_copies_an_empty_string)
     free(destination);
 }
 
-/* Tests_SRS_UMOCKTYPES_CHARPTR_01_011: [ umocktypes_copy_charptr shall allocate a new sequence of chars by using malloc. ]*/
+/* Tests_SRS_UMOCKTYPES_CHARPTR_01_011: [ umocktypes_copy_charptr shall allocate a new sequence of chars by using umockalloc_malloc. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_012: [ The number of bytes allocated shall accomodate the string pointed to by source. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_016: [ On success umocktypes_copy_charptr shall return 0. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_014: [ umocktypes_copy_charptr shall copy the string pointed to by source to the newly allocated memory. ]*/
@@ -647,7 +651,7 @@ TEST_FUNCTION(umocktypes_are_equal_const_charptr_with_string_being_different_in_
 
 /* umocktypes_copy_const_charptr */
 
-/* Tests_SRS_UMOCKTYPES_CHARPTR_01_028: [ umocktypes_copy_const_charptr shall allocate a new sequence of chars by using malloc. ]*/
+/* Tests_SRS_UMOCKTYPES_CHARPTR_01_028: [ umocktypes_copy_const_charptr shall allocate a new sequence of chars by using umockalloc_malloc. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_029: [ The number of bytes allocated shall accomodate the string pointed to by source. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_032: [ On success umocktypes_copy_const_charptr shall return 0. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_030: [ umocktypes_copy_const_charptr shall copy the string pointed to by source to the newly allocated memory. ]*/
@@ -669,7 +673,7 @@ TEST_FUNCTION(umocktypes_copy_const_charptr_copies_an_empty_string)
     free((void*)destination);
 }
 
-/* Tests_SRS_UMOCKTYPES_CHARPTR_01_028: [ umocktypes_copy_const_charptr shall allocate a new sequence of chars by using malloc. ]*/
+/* Tests_SRS_UMOCKTYPES_CHARPTR_01_028: [ umocktypes_copy_const_charptr shall allocate a new sequence of chars by using umockalloc_malloc. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_029: [ The number of bytes allocated shall accomodate the string pointed to by source. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_032: [ On success umocktypes_copy_const_charptr shall return 0. ]*/
 /* Tests_SRS_UMOCKTYPES_CHARPTR_01_030: [ umocktypes_copy_const_charptr shall copy the string pointed to by source to the newly allocated memory. ]*/
