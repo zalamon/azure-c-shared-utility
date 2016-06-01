@@ -183,16 +183,12 @@ static void openssl_dynamic_locks_uninstall(void)
 #endif
 }
 
-static int openssl_dynamic_locks_install(void)
+static void openssl_dynamic_locks_install(void)
 {
 #if (OPENSSL_VERSION_NUMBER >= 0x00906000)
     CRYPTO_set_dynlock_create_callback(openssl_dynamic_locks_create_cb);
     CRYPTO_set_dynlock_lock_callback(openssl_dynamic_locks_lock_unlock_cb);
     CRYPTO_set_dynlock_destroy_callback(openssl_dynamic_locks_destroy_cb);
-    
-    return 0;
-#else
-    return __LINE__
 #endif
 }
 
@@ -656,8 +652,8 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
                             (void)BIO_free(tlsInstance->in_bio);
                             (void)BIO_free(tlsInstance->out_bio);
                             SSL_CTX_free(tlsInstance->ssl_context);
-                            result = __LINE__;
                             log_ERR_get_error("Failed creating OpenSSL instance.");
+                            result = __LINE__;
                         }
                         else
                         {
@@ -686,22 +682,19 @@ int tlsio_openssl_init(void)
 #else
     CRYPTO_THREADID_set_callback(openssl_thread_id_cb_2);
 #endif
-    /* Ensure that at least dynamic locks are installed */
-    if (openssl_dynamic_locks_install() == 0)
+
+    if (openssl_static_locks_install() != 0)
     {
-        openssl_static_locks_install();
-        return 0;
+        LogError("Failed to install static locks in OpenSSL!");
+        return __LINE__;
     }
-    else
-    {
-        return openssl_static_locks_install();
-    }
+
+    openssl_dynamic_locks_install();
+    return 0;
 }
 
 void tlsio_openssl_deinit(void)
 {
-    ERR_free_strings();
-    
     openssl_static_locks_uninstall();
     openssl_dynamic_locks_uninstall();
     
@@ -709,6 +702,8 @@ void tlsio_openssl_deinit(void)
 #if (OPENSSL_VERSION_NUMBER >= 0x10000000)
     CRYPTO_THREADID_set_callback(NULL);
 #endif
+
+    ERR_free_strings();
 }
 
 CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters, LOGGER_LOG logger_log)
