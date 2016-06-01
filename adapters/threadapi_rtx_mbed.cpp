@@ -142,3 +142,8 @@ void ThreadAPI_Sleep(unsigned int millisec)
     }
     Thread::wait(remainderOfThirtySeconds);
 }
+
+unsigned long ThreadAPI_Self(void)
+{
+    return (unsigned long)Thread::gettid();
+}

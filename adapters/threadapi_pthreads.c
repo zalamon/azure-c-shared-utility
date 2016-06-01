@@ -135,3 +135,8 @@ void ThreadAPI_Sleep(unsigned int milliseconds)
     (void)nanosleep(&timeToSleep, NULL);
 #endif
 }
+
+unsigned long ThreadAPI_Self(void)
+{
+    return (unsigned long)pthread_self();
+}

@@ -76,3 +76,8 @@ void ThreadAPI_Sleep(unsigned int milliseconds)
 {
     Sleep(milliseconds);
 }
+
+unsigned long ThreadAPI_Self(void)
+{
+    return (unsigned long)GetCurrentThreadId();
+}
