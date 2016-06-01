@@ -101,14 +101,18 @@ void ThreadAPI_Exit(int res)
 
 void ThreadAPI_Sleep(unsigned int milliseconds)
 {
-    HANDLE handle = CreateEventEx(NULL, NULL, 0, EVENT_ALL_ACCESS);
+#if _WIN32
+    Sleep(milliseconds);  /* works only on windows, however -- C11 to be deleted soon */
+#else
+#error(use pthreads instead);
+#endif
+}
 
-    if (handle != NULL)
-    {
-        /*
-         * Have to use at least 1 to cause a thread yield in case 0 is passed
-         */
-        (void)WaitForSingleObjectEx(handle, milliseconds == 0 ? 1 : milliseconds, FALSE);
-        (void)CloseHandle(handle);
-    }
+unsigned long ThreadAPI_Self(void)
+{
+#if _WIN32
+    return GetCurrentThreadId(); /* works only on windows, however -- C11 to be deleted soon */
+#else
+#error(use pthreads instead);
+#endif
 }

@@ -38,12 +38,15 @@ static void thread_wrapper(const void* createParamArg)
     free((void*)p);
 }
 
+/* SRS_THREADAPI_99_002: [ This API creates a new thread with passed in THREAD_START_FUNC entry point and context arg ]*/
 THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC func, void* arg)
 {
     THREADAPI_RESULT result;
     if ((threadHandle == NULL) ||
         (func == NULL))
     {
+        /* SRS_THREADAPI_99_003: [ The API returns THREADAPI_INVALID_ARG if threadhandle is NULL ]*/
+        /* SRS_THREADAPI_99_004: [ The API returns THREADAPI_INVALID_ARG if entry point function is NULL ]*/
         result = THREADAPI_INVALID_ARG;
         LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
     }
@@ -65,17 +68,30 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
                 param->arg = arg;
                 param->p_thread = threads + slot;
                 threads[slot].thrd = new Thread(thread_wrapper, param, osPriorityNormal, STACK_SIZE);
-                *threadHandle = (THREAD_HANDLE)(threads + slot);
-                result = THREADAPI_OK;
+                if (threads[slot].thrd == NULL)
+                {
+                    free(param);
+                    /* SRS_THREADAPI_99_005: [ If allocation of thread handle fails due to out of memory `THREADAPI_NO_MEMORY` shall be returned ] */
+                    result = THREADAPI_NO_MEMORY;
+                    LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
+                }
+                else
+                {
+                    *threadHandle = (THREAD_HANDLE)(threads + slot);
+                    /* SRS_THREADAPI_99_006: [ If the new thread is running `THREADAPI_OK` shall be returned ]*/
+                    result = THREADAPI_OK;
+                }
             }
             else
             {
+                /* SRS_THREADAPI_99_005: [ If allocation of thread handle fails due to out of memory `THREADAPI_NO_MEMORY` shall be returned ] */
                 result = THREADAPI_NO_MEMORY;
                 LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
             }
         }
         else
         {
+            /* SRS_THREADAPI_99_005: [ If allocation of thread handle fails due to out of memory `THREADAPI_NO_MEMORY` shall be returned ] */
             result = THREADAPI_NO_MEMORY;
             LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
         }
@@ -84,6 +100,7 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
     return result;
 }
 
+/* SRS_THREADAPI_99_008: [ This API will block until the thread identified by threadHandle has exited ] */
 THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE thr, int *res)
 {
     THREADAPI_RESULT result = THREADAPI_OK;
@@ -98,21 +115,27 @@ THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE thr, int *res)
                 *res = (int)evt.value.p;
             }
             (void)t->terminate();
+            
+            /* SRS_THREADAPI_99_012: [ On return the threadHandle will be freed and thus invalid ] */
+            // NULL p->thrd and ->id to reclaim slot?
         }
         else
         {
+            /* SRS_THREADAPI_99_010: [ If joining fails, the API shall return `THREADAPI_ERROR` ] */
             result = THREADAPI_ERROR;
             LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
         }
     }
     else
     {
+        /* SRS_THREADAPI_99_011: [ This API on `NULL` handle passed returns `THREADAPI_INVALID_ARG` ] */
         result = THREADAPI_INVALID_ARG;
         LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
     }
     return result;
 }
 
+/* SRS_THREADAPI_99_013: [ This API ends the current thread  ] */
 void ThreadAPI_Exit(int res)
 {
     mbedThread* p;
@@ -126,6 +149,7 @@ void ThreadAPI_Exit(int res)
     }
 }
 
+/* SRS_THREADAPI_99_015: [ This API sleeps for the passed in number of milliseconds ] */
 void ThreadAPI_Sleep(unsigned int millisec)
 {
     //
@@ -141,4 +165,10 @@ void ThreadAPI_Sleep(unsigned int millisec)
         Thread::wait(thirtySeconds);
     }
     Thread::wait(remainderOfThirtySeconds);
+}
+
+/* SRS_THREADAPI_99_016: [ This API returns an unsigned long identifier of the current thread ] */
+unsigned long ThreadAPI_Self(void)
+{
+    return (unsigned long)Thread::gettid();
 }
