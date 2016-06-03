@@ -247,14 +247,6 @@ static int openssl_static_locks_install(void)
     return result;
 }
 
-#ifdef __linux__
-#include <sys/types.h>
-static unsigned long openssl_thread_id_cb(void)
-{
-    return (unsigned long)gettid();
-}
-#endif
-
 static void indicate_error(TLS_IO_INSTANCE* tls_io_instance)
 {
     if (tls_io_instance->on_io_error == NULL)
@@ -672,10 +664,6 @@ int tlsio_openssl_init(void)
     SSL_load_error_strings();
     ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
-    
-#ifdef __linux__
-    CRYPTO_set_id_callback(openssl_thread_id_cb);
-#endif
 
     if (openssl_static_locks_install() != 0)
     {
@@ -691,10 +679,6 @@ void tlsio_openssl_deinit(void)
 {
     openssl_dynamic_locks_uninstall();
     openssl_static_locks_uninstall();
-    
-#ifdef __linux__
-    CRYPTO_set_id_callback(NULL);
-#endif
 
     ERR_free_strings();
 }
