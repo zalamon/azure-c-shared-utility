@@ -248,6 +248,7 @@ static int openssl_static_locks_install(void)
 }
 
 #ifdef __linux__
+#include <sys/types.h>
 static unsigned long openssl_thread_id_cb(void)
 {
     return (unsigned long)gettid();
