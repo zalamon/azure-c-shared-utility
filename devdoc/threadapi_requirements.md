@@ -9,6 +9,8 @@ The Thread API adapter component is implemented to expose threading functionalit
 ## Exposed API
 **SRS_THREADAPI_99_001: [** Thread API interface exposes the following APIs **]**
 ```c
+typedef int(*THREAD_START_FUNC)(void *);
+
 typedef enum THREADAPI_RESULT_TAG
 {
     THREADAPI_OK,
@@ -17,16 +19,22 @@ typedef enum THREADAPI_RESULT_TAG
     THREADAPI_ERROR
     
 } THREADAPI_RESULT;
-```
 
-```c
-typedef void* THREAD_HANDLE; 
+typedef void* THREAD_HANDLE;
+
+MOCKABLE_FUNCTION(, THREADAPI_RESULT, ThreadAPI_Create, THREAD_HANDLE*, threadHandle, THREAD_START_FUNC, func, void*, arg);
+MOCKABLE_FUNCTION(, THREADAPI_RESULT, ThreadAPI_Join, THREAD_HANDLE, threadHandle, int*, res);
+MOCKABLE_FUNCTION(, void, ThreadAPI_Exit, int, res);
+MOCKABLE_FUNCTION(, void, ThreadAPI_Sleep, unsigned int, milliseconds);
+
 ```
 **SRS_THREADAPI_99_001: [** This is the handle to a thread instances, and valid until thread is joined. **]**
 
 ```c
 THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC func, void* arg) ; 
 ```
+Creates a thread with the entry point specified by the @p func
+
 **SRS_THREADAPI_99_002: [** This API creates a new thread with passed in THREAD_START_FUNC entry point and context arg **]**
 
 **SRS_THREADAPI_99_003: [** The API returns THREADAPI_INVALID_ARG if threadhandle is NULL **]**
@@ -59,14 +67,7 @@ void ThreadAPI_Exit(int res) ;
 
 **SRS_THREADAPI_99_014: [** The current thread returns with the passed in result code **]**
 
-
 ```c
 void ThreadAPI_Sleep(unsigned int milliseconds); 
 ```
 **SRS_THREADAPI_99_015: [** This API sleeps for the passed in number of milliseconds **]**
-
-```c
-unsigned long ThreadAPI_Self(void);
-```
-**SRS_THREADAPI_99_016: [** This API returns an unsigned long identifier of the current thread **]**
-

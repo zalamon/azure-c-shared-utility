@@ -83,13 +83,6 @@ MOCKABLE_FUNCTION(, void, ThreadAPI_Exit, int, res);
  */
 MOCKABLE_FUNCTION(, void, ThreadAPI_Sleep, unsigned int, milliseconds);
 
-/**
- * @brief	Returns the thread id of the current thread
- * 
- * @return	unsigned long id of the thread on the system.
- */
-MOCKABLE_FUNCTION(, unsigned long, ThreadAPI_Self);
-
 #ifdef __cplusplus
 }
 #endif

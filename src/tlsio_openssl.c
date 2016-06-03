@@ -12,9 +12,7 @@
 #include "openssl/opensslv.h"
 #include <stdio.h>
 #include <stdbool.h>
-#include "azure_c_shared_utility/httpapi.h"
 #include "azure_c_shared_utility/lock.h"
-#include "azure_c_shared_utility/threadapi.h"
 #include "azure_c_shared_utility/tlsio.h"
 #include "azure_c_shared_utility/tlsio_openssl.h"
 #include "azure_c_shared_utility/socketio.h"
@@ -54,6 +52,11 @@ typedef struct TLS_IO_INSTANCE_TAG
     char* certificate;
 } TLS_IO_INSTANCE;
 
+struct CRYPTO_dynlock_value 
+{
+    LOCK_HANDLE lock; 
+};
+
 static const IO_INTERFACE_DESCRIPTION tlsio_openssl_interface_description =
 {
     tlsio_openssl_create,
@@ -70,11 +73,7 @@ static LOCK_HANDLE * openssl_locks = NULL;
 
 static void openssl_lock_unlock_helper(LOCK_HANDLE lock, int lock_mode, const char* file, int line)
 {
-    if (lock == NULL)
-    {
-        LogError("Bad NULL Lock passed to lock/unlock callback (%s:%d)", file, line);
-    }
-    else if (lock_mode & CRYPTO_LOCK)
+    if (lock_mode & CRYPTO_LOCK)
     {
         if (Lock(lock) != 0)
         {
@@ -109,18 +108,6 @@ static void log_ERR_get_error(const char* message)
     }
 }
 
-static unsigned long openssl_thread_id_cb(void)
-{
-    return ThreadAPI_Self();
-}
-
-static void openssl_thread_id_cb_2(CRYPTO_THREADID* id)
-{
-    CRYPTO_THREADID_set_numeric(id, openssl_thread_id_cb());
-}
-
-struct CRYPTO_dynlock_value { LOCK_HANDLE lock; };
-
 static struct CRYPTO_dynlock_value* openssl_dynamic_locks_create_cb(const char* file, int line)
 {
     struct CRYPTO_dynlock_value* result;
@@ -148,30 +135,13 @@ static struct CRYPTO_dynlock_value* openssl_dynamic_locks_create_cb(const char* 
 
 static void openssl_dynamic_locks_lock_unlock_cb(int lock_mode, struct CRYPTO_dynlock_value* dynlock_value, const char* file, int line)
 {
-    if (dynlock_value == NULL)
-    {
-        LogError("Bad NULL lock argument passed to lock/unlock callback (%s:%d).", file, line);
-    }
-    else
-    {
-        openssl_lock_unlock_helper(dynlock_value->lock, lock_mode, file, line);
-    }
+    openssl_lock_unlock_helper(dynlock_value->lock, lock_mode, file, line);
 }
 
 static void openssl_dynamic_locks_destroy_cb(struct CRYPTO_dynlock_value* dynlock_value, const char* file, int line)
 {
-    if (dynlock_value == NULL)
-    {
-        LogError("Bad NULL lock argument passed to destroy callback (%s:%d).", file, line);
-    }
-    else
-    {
-        if (dynlock_value->lock != NULL)
-        {
-            Lock_Deinit(dynlock_value->lock);
-        }
-        free(dynlock_value);
-    }
+    Lock_Deinit(dynlock_value->lock);
+    free(dynlock_value);
 }
 
 static void openssl_dynamic_locks_uninstall(void)
@@ -186,15 +156,15 @@ static void openssl_dynamic_locks_uninstall(void)
 static void openssl_dynamic_locks_install(void)
 {
 #if (OPENSSL_VERSION_NUMBER >= 0x00906000)
-    CRYPTO_set_dynlock_create_callback(openssl_dynamic_locks_create_cb);
-    CRYPTO_set_dynlock_lock_callback(openssl_dynamic_locks_lock_unlock_cb);
     CRYPTO_set_dynlock_destroy_callback(openssl_dynamic_locks_destroy_cb);
+    CRYPTO_set_dynlock_lock_callback(openssl_dynamic_locks_lock_unlock_cb);
+    CRYPTO_set_dynlock_create_callback(openssl_dynamic_locks_create_cb);
 #endif
 }
 
 static void openssl_static_locks_lock_unlock_cb(int lock_mode, int lock_index, const char * file, int line)
 {
-    if (lock_index < 0 || lock_index > CRYPTO_num_locks())
+    if (lock_index < 0 || lock_index >= CRYPTO_num_locks())
     {
         LogError("Bad lock index %d passed (%s:%d)", lock_index, file, line);
     }
@@ -221,14 +191,20 @@ static void openssl_static_locks_uninstall(void)
         free(openssl_locks);
         openssl_locks = NULL;
     }
+    else
+    {
+        LogError("Locks already uninstalled");
+    }
 }
 
 static int openssl_static_locks_install(void)
 {
+    int result;
+    
     if (openssl_locks != NULL)
     {
-        LogError("Already initialized");
-        return __LINE__;
+        LogError("Locks already initialized");
+        result = __LINE__;
     }
     else
     {
@@ -236,34 +212,53 @@ static int openssl_static_locks_install(void)
         if(openssl_locks == NULL)
         {
             LogError("Failed to allocate locks");
-            openssl_static_locks_uninstall();
-            return __LINE__;
+            result = __LINE__;
         }
         else
         {
-            for(int i = 0; i < CRYPTO_num_locks(); i++)
+            int i;
+            for(i = 0; i < CRYPTO_num_locks(); i++)
             {
                 openssl_locks[i] = Lock_Init();
                 if (openssl_locks[i] == NULL)
                 {
                     LogError("Failed to allocate lock %d", i);
-                    openssl_static_locks_uninstall();
-                    return __LINE__;
+                    break;
                 }
             }
             
-            CRYPTO_set_locking_callback(openssl_static_locks_lock_unlock_cb);
+            if (i != CRYPTO_num_locks())
+            {
+                result = __LINE__;
+                
+                for (int j = 0; j < i; j++)
+                {
+                    Lock_Deinit(openssl_locks[j]);
+                }
+            }
+            else
+            {
+                CRYPTO_set_locking_callback(openssl_static_locks_lock_unlock_cb);
+                
+                result = 0;
+            }
         }
     }
-    return 0;
+    return result;
 }
+
+#ifdef __linux__
+static unsigned long openssl_thread_id_cb(void)
+{
+    return (unsigned long)gettid();
+}
+#endif
 
 static void indicate_error(TLS_IO_INSTANCE* tls_io_instance)
 {
     if (tls_io_instance->on_io_error == NULL)
     {
         LogError("NULL on_io_error.");
-
     }
     else
     {
@@ -677,10 +672,8 @@ int tlsio_openssl_init(void)
     ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
     
-#if (OPENSSL_VERSION_NUMBER < 0x10000000)
+#ifdef __linux__
     CRYPTO_set_id_callback(openssl_thread_id_cb);
-#else
-    CRYPTO_THREADID_set_callback(openssl_thread_id_cb_2);
 #endif
 
     if (openssl_static_locks_install() != 0)
@@ -695,12 +688,11 @@ int tlsio_openssl_init(void)
 
 void tlsio_openssl_deinit(void)
 {
-    openssl_static_locks_uninstall();
     openssl_dynamic_locks_uninstall();
+    openssl_static_locks_uninstall();
     
+#ifdef __linux__
     CRYPTO_set_id_callback(NULL);
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000)
-    CRYPTO_THREADID_set_callback(NULL);
 #endif
 
     ERR_free_strings();

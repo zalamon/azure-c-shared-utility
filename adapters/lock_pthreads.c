@@ -11,27 +11,10 @@ DEFINE_ENUM_STRINGS(LOCK_RESULT, LOCK_RESULT_VALUES);
 /*SRS_LOCK_99_002:[ This API on success will return a valid lock handle which should be a non NULL value]*/
 LOCK_HANDLE Lock_Init(void)
 {
-	pthread_mutex_t* lock_mtx;
-	pthread_mutexattr_t attr;
-
-	/* Locks are re-entrant on Windows et.al, attempt to set same behavior with posix */
-	if (pthread_mutexattr_init(&attr) != 0)
-	{
-		LogError("Failed to initialize recursive mutex attribute");
-		return NULL;
-	}
-	else if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE) != 0)
-	{
-		(void)pthread_mutexattr_destroy(&attr);
-		
-		LogError("Failed to set recursive type on mutex attribute");
-		return NULL;
-	}
-	
-	lock_mtx = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_t* lock_mtx = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
 	if (NULL != lock_mtx)
 	{
-		if (pthread_mutex_init(lock_mtx, &attr) != 0)
+		if (pthread_mutex_init(lock_mtx, NULL) != 0)
 		{
 			/*SRS_LOCK_99_003:[ On Error Should return NULL]*/
 			free(lock_mtx);
@@ -39,8 +22,6 @@ LOCK_HANDLE Lock_Init(void)
 			LogError("Failed to initialize mutex");
 		}
 	}
-	
-	(void)pthread_mutexattr_destroy(&attr);
 	
 	return (LOCK_HANDLE)lock_mtx;
 }
