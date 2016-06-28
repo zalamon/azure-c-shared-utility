@@ -25,13 +25,13 @@ include (CTest)
 set(SHARED_UTIL_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "this is what needs to be included if using sharedLib lib" FORCE)
 set(SHARED_UTIL_SRC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/src CACHE INTERNAL "this is what needs to be included when doing include sources" FORCE)
 set(SHARED_UTIL_ADAPTER_FOLDER "${CMAKE_CURRENT_LIST_DIR}/adapters" CACHE INTERNAL "this is where the adapters live" FORCE)
+
 include_directories(${SHARED_UTIL_INC_FOLDER})
 
 #the following variables are project-wide and can be used with cmake-gui
 option(skip_unittests "set skip_unittests to ON to skip unittests (default is OFF)[if possible, they are always build]" OFF)
 option(use_http "set use_http to ON if http is to be used, set to OFF to not use http" ON)
 option(use_condition "set use_condition to ON if the condition module and its adapters should be enabled" ON)
-
 
 if(WIN32)
     option(use_schannel "set use_schannel to ON if schannel is to be used, set to OFF to not use schannel" ON)
@@ -55,6 +55,36 @@ set (LIB_INSTALL_DIR lib CACHE PATH "Library object file directory")
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 enable_testing()
+
+include(CheckSymbolExists)
+function(detect_architecture symbol arch) 
+    if (NOT DEFINED ARCHITECTURE OR ARCHITECTURE STREQUAL "")
+        set(CMAKE_REQUIRED_QUIET 1)
+        check_symbol_exists("${symbol}" "" ARCHITECTURE_${arch}) 
+        unset(CMAKE_REQUIRED_QUIET) 
+  
+        # The output variable needs to be unique across invocations otherwise 
+        # CMake's crazy scope rules will keep it defined 
+        if (ARCHITECTURE_${arch}) 
+            set(ARCHITECTURE "${arch}" PARENT_SCOPE) 
+            set(ARCHITECTURE_${arch} 1 PARENT_SCOPE) 
+            add_definitions(-DARCHITECTURE_${arch}=1) 
+        endif()
+    endif()
+endfunction()
+if (MSVC)
+    detect_architecture("_M_AMD64" x86_64)
+    detect_architecture("_M_IX86" x86)
+    detect_architecture("_M_ARM" ARM)
+else() 
+    detect_architecture("__x86_64__" x86_64)
+    detect_architecture("__i386__" x86)
+    detect_architecture("__arm__" ARM)
+endif() 
+if (NOT DEFINED ARCHITECTURE OR ARCHITECTURE STREQUAL "") 
+    set(ARCHITECTURE "GENERIC") 
+endif() 
+message(STATUS "Shared_Util architecture: ${ARCHITECTURE}")
 
 #if any compiler has a command line switch called "OFF" then it will need special care
 if(NOT "${compileOption_C}" STREQUAL "OFF")
@@ -107,6 +137,8 @@ function(windows_unittests_add_dll whatIsBuilding)
         ${${whatIsBuilding}_cpp_files} 
         ${${whatIsBuilding}_h_files} 
         ${${whatIsBuilding}_c_files}
+        ${sharedutil_include_directories}../../src/xlogging.c
+        ${sharedutil_include_directories}../../src/consolelogger.c
     )
 
     set_target_properties(${whatIsBuilding}_dll
@@ -124,6 +156,8 @@ function(windows_unittests_add_exe whatIsBuilding)
         ${${whatIsBuilding}_h_files} 
         ${${whatIsBuilding}_c_files}
         ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${sharedutil_include_directories}../../src/xlogging.c
+        ${sharedutil_include_directories}../../src/consolelogger.c
     )
     set_target_properties(${whatIsBuilding}_exe
                PROPERTIES
@@ -144,6 +178,8 @@ function(linux_unittests_add_exe whatIsBuilding)
         ${${whatIsBuilding}_h_files} 
         ${${whatIsBuilding}_c_files}
         ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${sharedutil_include_directories}../../src/xlogging.c
+        ${sharedutil_include_directories}../../src/consolelogger.c
     )
     set_target_properties(${whatIsBuilding}_exe
                PROPERTIES
@@ -245,9 +281,14 @@ endfunction(build_test_artifacts)
 function(c_windows_unittests_add_dll whatIsBuilding folder)
     link_directories(${whatIsBuilding}_dll $ENV{VCInstallDir}UnitTest/lib)
 
-    add_library(${whatIsBuilding}_testsonly_lib STATIC 
-        ${${whatIsBuilding}_test_files} 
-    )
+    SET(VAR 1)
+    foreach(file ${${whatIsBuilding}_test_files})
+        add_library(${whatIsBuilding}_testsonly_lib STATIC 
+            ${file}
+        )
+        set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS -DCPPUNITTEST_SYMBOL=some_symbol_for_cppunittest_${VAR})
+        MATH(EXPR VAR "${VAR}+1")
+    endforeach()
 
     set_target_properties(${whatIsBuilding}_testsonly_lib
                PROPERTIES
@@ -261,6 +302,8 @@ function(c_windows_unittests_add_dll whatIsBuilding folder)
         ${${whatIsBuilding}_cpp_files} 
         ${${whatIsBuilding}_h_files} 
         ${${whatIsBuilding}_c_files}
+        ${sharedutil_include_directories}../../src/xlogging.c
+        ${sharedutil_include_directories}../../src/consolelogger.c
     )
 
     set_target_properties(${whatIsBuilding}_dll
@@ -270,6 +313,17 @@ function(c_windows_unittests_add_dll whatIsBuilding folder)
     target_include_directories(${whatIsBuilding}_dll PUBLIC ${sharedutil_include_directories} $ENV{VCInstallDir}UnitTest/include)
     target_compile_definitions(${whatIsBuilding}_dll PUBLIC -DCPP_UNITTEST)
     target_link_libraries(${whatIsBuilding}_dll micromock_cpp_unittest umock_c ctest testrunnerswitcher ${whatIsBuilding}_testsonly_lib ${ARGN})
+    SET(VAR 1)
+    foreach(file ${${whatIsBuilding}_test_files})
+
+        # for x64 the underscore is not needed
+        if (ARCHITECTURE STREQUAL "x86_64")
+            set_property(TARGET ${whatIsBuilding}_dll APPEND PROPERTY LINK_FLAGS /INCLUDE:"some_symbol_for_cppunittest_${VAR}")
+        else()
+            set_property(TARGET ${whatIsBuilding}_dll APPEND PROPERTY LINK_FLAGS /INCLUDE:"_some_symbol_for_cppunittest_${VAR}")
+        endif()
+        MATH(EXPR VAR "${VAR}+1")
+    endforeach()
 endfunction()
 
 function(c_windows_unittests_add_exe whatIsBuilding folder)
@@ -279,6 +333,8 @@ function(c_windows_unittests_add_exe whatIsBuilding folder)
         ${${whatIsBuilding}_h_files} 
         ${${whatIsBuilding}_c_files}
         ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${sharedutil_include_directories}../../src/xlogging.c
+        ${sharedutil_include_directories}../../src/consolelogger.c
     )
     set_target_properties(${whatIsBuilding}_exe
                PROPERTIES
@@ -301,6 +357,8 @@ function(c_linux_unittests_add_exe whatIsBuilding folder)
         ${${whatIsBuilding}_h_files} 
         ${${whatIsBuilding}_c_files}
         ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${sharedutil_include_directories}../../src/xlogging.c
+        ${sharedutil_include_directories}../../src/consolelogger.c
     )
     set_target_properties(${whatIsBuilding}_exe
                PROPERTIES
@@ -308,38 +366,38 @@ function(c_linux_unittests_add_exe whatIsBuilding folder)
 
     target_compile_definitions(${whatIsBuilding}_exe PUBLIC -DUSE_CTEST)
     target_include_directories(${whatIsBuilding}_exe PUBLIC ${sharedutil_include_directories})
-	
-	#this part detects 
+    
+    #this part detects 
         #       - the additional libraries that might be needed.
-	#     additional libraries are started by ADDITIONAL_LIBS parameter and ended by any other known parameter (or end of variable arguments)
-	#   - a valgring suppression file (VALGRIND_SUPRESSIONS_FILE) for memcheck
-	#     the file name follows immediately after 
-	
-	set(PARSING_ADDITIONAL_LIBS OFF)
-	set(PARSING_VALGRIND_SUPRESSIONS_FILE OFF)
+    #     additional libraries are started by ADDITIONAL_LIBS parameter and ended by any other known parameter (or end of variable arguments)
+    #   - a valgring suppression file (VALGRIND_SUPRESSIONS_FILE) for memcheck
+    #     the file name follows immediately after 
+    
+    set(PARSING_ADDITIONAL_LIBS OFF)
+    set(PARSING_VALGRIND_SUPRESSIONS_FILE OFF)
         set(VALGRIND_SUPPRESSIONS_FILE_EXTRA_PARAMETER)
-	foreach(f ${ARGN})
-		if(${f} STREQUAL "ADDITIONAL_LIBS")
-			SET(PARSING_ADDITIONAL_LIBS ON)
-			SET(PARSING_VALGRIND_SUPRESSION_FILE OFF)
-			#also unset all the other states
-			continue()
+    foreach(f ${ARGN})
+        if(${f} STREQUAL "ADDITIONAL_LIBS")
+            SET(PARSING_ADDITIONAL_LIBS ON)
+            SET(PARSING_VALGRIND_SUPRESSION_FILE OFF)
+            #also unset all the other states
+            continue()
                 elseif(${f} STREQUAL "VALGRIND_SUPPRESSIONS_FILE")
-			SET(PARSING_ADDITIONAL_LIBS OFF)
+            SET(PARSING_ADDITIONAL_LIBS OFF)
                         SET(PARSING_VALGRIND_SUPPRESSION_FILE ON)
-			continue()
-		endif()
-		
-		if(PARSING_ADDITIONAL_LIBS)
-			target_link_libraries(${whatIsBuilding}_exe ${f})
+            continue()
+        endif()
+        
+        if(PARSING_ADDITIONAL_LIBS)
+            target_link_libraries(${whatIsBuilding}_exe ${f})
                 elseif(PARSING_VALGRIND_SUPPRESSION_FILE)
                         set(VALGRIND_SUPPRESSIONS_FILE_EXTRA_PARAMETER "--suppressions=${f}")
-		endif()	
-		
-	endforeach()
-	
-	target_link_libraries(${whatIsBuilding}_exe micromock_ctest umock_c ctest)
-	
+        endif()	
+        
+    endforeach()
+    
+    target_link_libraries(${whatIsBuilding}_exe micromock_ctest umock_c ctest)
+    
     add_test(NAME ${whatIsBuilding} COMMAND $<TARGET_FILE:${whatIsBuilding}_exe>)
     
     if(${run_valgrind})
@@ -447,6 +505,7 @@ set(source_c_files
 ./src/base64.c
 ./src/buffer.c
 ./src/constbuffer.c
+./src/consolelogger.c
 ./src/crt_abstractions.c
 ./src/constmap.c
 ./src/doublylinkedlist.c
@@ -467,6 +526,7 @@ set(source_c_files
 ./src/urlencode.c
 ./src/usha.c
 ./src/vector.c
+./src/xlogging.c
 ./adapters/agenttime.c
 ${CONDITION_C_FILE}
 ${LOCK_C_FILE}
@@ -510,13 +570,13 @@ set(source_h_files
 ./inc/azure_c_shared_utility/crt_abstractions.h
 ./inc/azure_c_shared_utility/constmap.h
 ./inc/azure_c_shared_utility/condition.h
+./inc/azure_c_shared_utility/consolelogger.h
 ./inc/azure_c_shared_utility/doublylinkedlist.h
 ./inc/azure_c_shared_utility/gballoc.h
 ./inc/azure_c_shared_utility/gb_stdio.h
 ./inc/azure_c_shared_utility/gb_time.h
 ./inc/azure_c_shared_utility/hmac.h
 ./inc/azure_c_shared_utility/hmacsha256.h
-./inc/azure_c_shared_utility/iot_logging.h
 ./inc/azure_c_shared_utility/list.h
 ./inc/azure_c_shared_utility/lock.h
 ./inc/azure_c_shared_utility/macro_utils.h
@@ -586,6 +646,11 @@ endif()
 IF(WIN32)
     #windows needs this define
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    # Make warning as error
+    add_definitions(/WX)
+ELSE()
+    # Make warning as error
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 ENDIF(WIN32)
 
 #this is the product (a library)
