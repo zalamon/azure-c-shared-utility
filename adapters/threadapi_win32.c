@@ -65,13 +65,22 @@ THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE threadHandle, int *res)
             result = THREADAPI_ERROR;
             LogError("Error waiting for Single Object. Return Code: %d. Error Code: %d", returnCode, result);
         }
-        /* Codes_SRS_THREADAPI_99_009: [ On success, res argument receives the exit code of the thread and the API returns THREADAPI_OK ] */
-        else if((res != NULL) && !GetExitCodeThread(threadHandle, res)) //If thread end is signaled we need to get the Thread Exit Code;
+        else
         {
-            /* Codes_SRS_THREADAPI_99_010: [ If joining fails, the API shall return `THREADAPI_ERROR` ] */
-            DWORD errorCode = GetLastError();
-            result = THREADAPI_ERROR;
-            LogError("Error Getting Exit Code. Error Code: %d.", errorCode);
+            if (res != NULL)
+            {
+                DWORD exit_code;
+                if (!GetExitCodeThread(threadHandle, &exit_code)) //If thread end is signaled we need to get the Thread Exit Code;
+                {
+                    DWORD errorCode = GetLastError();
+                    result = THREADAPI_ERROR;
+                    LogError("Error Getting Exit Code. Error Code: %u.", (unsigned int)errorCode);
+                }
+                else
+                {
+                    *res = (int)exit_code;
+                }
+            }
         }
         /* Codes_SRS_THREADAPI_99_012: [ On return the threadHandle will be freed and thus invalid ] */
         CloseHandle(threadHandle);
