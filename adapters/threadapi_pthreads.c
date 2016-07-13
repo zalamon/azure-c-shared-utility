@@ -35,7 +35,6 @@ static void* ThreadWrapper(void* threadInstanceArg)
     return (void*)(intptr_t)result;
 }
 
-/* Codes_SRS_THREADAPI_99_002: [ This API creates a new thread with passed in THREAD_START_FUNC entry point and context arg ]*/
 THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC func, void* arg)
 {
     THREADAPI_RESULT result;
@@ -43,8 +42,6 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
     if ((threadHandle == NULL) ||
         (func == NULL))
     {
-        /* Codes_SRS_THREADAPI_99_003: [ The API returns THREADAPI_INVALID_ARG if threadhandle is NULL ]*/
-        /* Codes_SRS_THREADAPI_99_004: [ The API returns THREADAPI_INVALID_ARG if entry point function is NULL ]*/
         result = THREADAPI_INVALID_ARG;
         LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
     }
@@ -53,7 +50,6 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
         THREAD_INSTANCE* threadInstance = malloc(sizeof(THREAD_INSTANCE));
         if (threadInstance == NULL)
         {
-            /* Codes_SRS_THREADAPI_99_005: [ If allocation of thread handle fails due to out of memory `THREADAPI_NO_MEMORY` shall be returned ] */
             result = THREADAPI_NO_MEMORY;
             LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
         }
@@ -67,21 +63,18 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
             default:
                 free(threadInstance);
 
-                /* Codes_SRS_THREADAPI_99_007: [ If the new thread is not running `THREADAPI_ERROR` shall be returned ] */
                 result = THREADAPI_ERROR;
                 LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
                 break;
 
             case 0:
                 *threadHandle = threadInstance;
-                /* Codes_SRS_THREADAPI_99_006: [ If the new thread is running `THREADAPI_OK` shall be returned ]*/
                 result = THREADAPI_OK;
                 break;
 
             case EAGAIN:
                 free(threadInstance);
 
-                /* Codes_SRS_THREADAPI_99_005: [ If allocation of thread handle fails due to out of memory `THREADAPI_NO_MEMORY` shall be returned ] */
                 result = THREADAPI_NO_MEMORY;
                 LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
                 break;
@@ -92,7 +85,6 @@ THREADAPI_RESULT ThreadAPI_Create(THREAD_HANDLE* threadHandle, THREAD_START_FUNC
     return result;
 }
 
-/* Codes_SRS_THREADAPI_99_008: [ This API will block until the thread identified by threadHandle has exited ] */
 THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE threadHandle, int* res)
 {
     THREADAPI_RESULT result;
@@ -100,7 +92,6 @@ THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE threadHandle, int* res)
     THREAD_INSTANCE* threadInstance = (THREAD_INSTANCE*)threadHandle;
     if (threadInstance == NULL)
     {
-        /* Codes_SRS_THREADAPI_99_011: [ This API on `NULL` handle passed returns `THREADAPI_INVALID_ARG` ] */
         result = THREADAPI_INVALID_ARG;
         LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
     }
@@ -109,13 +100,11 @@ THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE threadHandle, int* res)
         void* threadResult;
         if (pthread_join(threadInstance->Pthread_handle, &threadResult) != 0)
         {
-            /* Codes_SRS_THREADAPI_99_010: [ If joining fails, the API shall return `THREADAPI_ERROR` ] */
             result = THREADAPI_ERROR;
             LogError("(result = %s)", ENUM_TO_STRING(THREADAPI_RESULT, result));
         }
         else
         {
-            /* Codes_SRS_THREADAPI_99_009: [ On success, res argument receives the exit code of the thread and the API returns THREADAPI_OK ] */
             if (res != NULL)
             {
                 *res = (int)(intptr_t)threadResult;
@@ -124,20 +113,17 @@ THREADAPI_RESULT ThreadAPI_Join(THREAD_HANDLE threadHandle, int* res)
             result = THREADAPI_OK;
         }
 
-        /* Codes_SRS_THREADAPI_99_012: [ On return the threadHandle will be freed and thus invalid ] */
         free(threadInstance);
     }
 
     return result;
 }
 
-/* Codes_SRS_THREADAPI_99_013: [ This API ends the current thread  ] */
 void ThreadAPI_Exit(int res)
 {
     pthread_exit((void*)(intptr_t)res);
 }
 
-/* Codes_SRS_THREADAPI_99_015: [ This API sleeps for the passed in number of milliseconds ] */
 void ThreadAPI_Sleep(unsigned int milliseconds)
 {
 #ifdef TI_RTOS
