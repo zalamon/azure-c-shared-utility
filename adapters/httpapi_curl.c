@@ -228,7 +228,7 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *userptr)
     {
         HTTP_HANDLE_DATA *httpHandleData = (HTTP_HANDLE_DATA *)userptr;
         BIO *bio_certificate;
-        bio_certificate = BIO_new_mem_buf(httpHandleData->x509certificate, -1);
+        bio_certificate = BIO_new_mem_buf((void*)httpHandleData->x509certificate, -1);
         if (bio_certificate == NULL)
         {
             LogError("cannot create  BIO *bio_certificate");
@@ -245,7 +245,7 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *userptr)
             else
             {
                 BIO *bio_privatekey;
-                bio_privatekey = BIO_new_mem_buf(httpHandleData->x509privatekey, -1);
+                bio_privatekey = BIO_new_mem_buf((void*)httpHandleData->x509privatekey, -1);
                 if (bio_privatekey == NULL)
                 {
                     LogError("cannot create BIO *bio_privatekey;");
