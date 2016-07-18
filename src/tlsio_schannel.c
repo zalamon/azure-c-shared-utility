@@ -592,6 +592,7 @@ CONCRETE_IO_HANDLE tlsio_schannel_create(void* io_create_parameters)
             result->on_bytes_received_context = NULL;
             result->on_io_error_context = NULL;
             result->credential_handle_allocated = false;
+            result->x509_schannel_handle = NULL;
 
             result->host_name = (SEC_CHAR*)malloc(sizeof(SEC_CHAR) * (1 + strlen(tls_io_config->hostname)));
             if (result->host_name == NULL)
