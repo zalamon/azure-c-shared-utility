@@ -20,26 +20,6 @@ endif()
 
 include (CTest)
 
-if(MSVC)
-    if (WINCE) # Be lax with WEC 2013 compiler
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
-        # WEC 2013 uses older VS compiler. Build some files as C++ files to resolve C99 related compile issues
-        SET_SOURCE_FILES_PROPERTIES(src/consolelogger.c src/xlogging.c src/map.c adapters/uniqueid_win32.c adapters/httpapi_wince.c src/tlsio_schannel.c src/x509_schannel.c PROPERTIES LANGUAGE CXX)
-        add_definitions(-DWIN32) #WEC 2013 
-    ELSE()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
-  
-    endif()
-elseif(LINUX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
-    if(NOT IN_OPENWRT)
-        set (CMAKE_C_FLAGS "-D_POSIX_C_SOURCE=200112L ${CMAKE_C_FLAGS}")
-    endif()
-endif()
-
 #these are the include folders
 #the following "set" statetement exports across the project a global variable called COMMON_INC_FOLDER that expands to whatever needs to included when using COMMON library
 set(SHARED_UTIL_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "this is what needs to be included if using sharedLib lib" FORCE)
@@ -56,6 +36,7 @@ option(skip_unittests "set skip_unittests to ON to skip unittests (default is OF
 option(use_http "set use_http to ON if http is to be used, set to OFF to not use http" ON)
 option(use_condition "set use_condition to ON if the condition module and its adapters should be enabled" ON)
 option(use_wsio "set use_wsio to ON to use libwebsockets for WebSocket support (default is OFF)" OFF)
+option(nuget_e2e_tests "set nuget_e2e_tests to ON to generate e2e tests to run with nuget packages (default is OFF)" OFF)
 
 if(WIN32)
     option(use_schannel "set use_schannel to ON if schannel is to be used, set to OFF to not use schannel" ON)
@@ -76,6 +57,26 @@ set (LIB_INSTALL_DIR lib CACHE PATH "Library object file directory")
 
 #Use solution folders. 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+if(MSVC)
+    if (WINCE) # Be lax with WEC 2013 compiler
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
+        # WEC 2013 uses older VS compiler. Build some files as C++ files to resolve C99 related compile issues
+        SET_SOURCE_FILES_PROPERTIES(src/consolelogger.c src/xlogging.c src/map.c adapters/uniqueid_win32.c adapters/httpapi_wince.c src/tlsio_schannel.c src/x509_schannel.c PROPERTIES LANGUAGE CXX)
+        add_definitions(-DWIN32) #WEC 2013 
+    ELSE()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
+  
+    endif()
+elseif(LINUX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+    if(NOT IN_OPENWRT)
+        set (CMAKE_C_FLAGS "-D_POSIX_C_SOURCE=200112L ${CMAKE_C_FLAGS}")
+    endif()
+endif()
 
 if(${use_wsio})
     include_directories($ENV{OpenSSLDir}/include)
@@ -103,17 +104,24 @@ if(${use_wsio})
         set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS_PREV})
         set(CMAKE_MODULE_LINKER_FLAGS ${CMAKE_MODULE_LINKER_FLAGS_PREV})
         set(CMAKE_STATIC_LINKER_FLAGS ${CMAKE_STATIC_LINKER_FLAGS_PREV})
-        
+
         string(REPLACE "/W0" "/W4" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
         string(REPLACE "/W0" "/W4" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    
+   
     elseif(LINUX)
         #because libwebsockets? is sensible to -Werror, it shall be removed, and re-added after
         string(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
         string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        if(NOT IN_OPENWRT)
+            string(REPLACE "-D_POSIX_C_SOURCE=200112L" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+        endif()
         add_subdirectory(deps/libwebsockets)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+        if(NOT IN_OPENWRT)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200112L")
+        endif()
+        
     endif()
 endif()
 
@@ -193,6 +201,18 @@ function(add_files_to_install filesToBeInstalled)
     set(INSTALL_H_FILES ${INSTALL_H_FILES} ${filesToBeInstalled} CACHE INTERNAL "Files that will be installed on the system")
 endfunction()
 
+function(set_test_target_folder whatIsBuilding ext)
+    if("${whatIsBuilding}" MATCHES ".*e2e.*")
+        set_target_properties(${whatIsBuilding}_${ext}
+                   PROPERTIES
+                   FOLDER "E2ETests")
+    else()
+        set_target_properties(${whatIsBuilding}_${ext}
+                   PROPERTIES
+                   FOLDER "UnitTests")
+    endif()
+endfunction()
+
 function(windows_unittests_add_dll whatIsBuilding)
     link_directories(${whatIsBuilding}_dll $ENV{VCInstallDir}UnitTest/lib)
     
@@ -204,9 +224,7 @@ function(windows_unittests_add_dll whatIsBuilding)
         ${sharedutil_include_directories}../../src/consolelogger.c
     )
 
-    set_target_properties(${whatIsBuilding}_dll
-               PROPERTIES
-               FOLDER "UnitTests") 
+    set_test_target_folder(${whatIsBuilding} "dll")
     
     target_include_directories(${whatIsBuilding}_dll PUBLIC ${sharedutil_include_directories} $ENV{VCInstallDir}UnitTest/include)
     target_compile_definitions(${whatIsBuilding}_dll PUBLIC -DCPP_UNITTEST)
@@ -222,9 +240,8 @@ function(windows_unittests_add_exe whatIsBuilding)
         ${sharedutil_include_directories}../../src/xlogging.c
         ${sharedutil_include_directories}../../src/consolelogger.c
     )
-    set_target_properties(${whatIsBuilding}_exe
-               PROPERTIES
-               FOLDER "UnitTests")
+
+    set_test_target_folder(${whatIsBuilding} "exe")
                 
     target_compile_definitions(${whatIsBuilding}_exe PUBLIC -DUSE_CTEST)
     target_include_directories(${whatIsBuilding}_exe PUBLIC ${sharedutil_include_directories})
@@ -244,9 +261,8 @@ function(linux_unittests_add_exe whatIsBuilding)
         ${sharedutil_include_directories}../../src/xlogging.c
         ${sharedutil_include_directories}../../src/consolelogger.c
     )
-    set_target_properties(${whatIsBuilding}_exe
-               PROPERTIES
-               FOLDER "UnitTests")
+
+    set_test_target_folder(${whatIsBuilding} "exe")
                 
     target_compile_definitions(${whatIsBuilding}_exe PUBLIC -DUSE_CTEST)
     target_include_directories(${whatIsBuilding}_exe PUBLIC ${sharedutil_include_directories})
@@ -327,8 +343,14 @@ function(build_test_artifacts whatIsBuilding use_gballoc)
             (("${whatIsBuilding}" MATCHES ".*ut.*") AND ${skip_unittests})
         )
         else()
-            windows_unittests_add_exe(${whatIsBuilding} ${ARGN})
-            windows_unittests_add_dll(${whatIsBuilding} ${ARGN})
+            if(
+                (("${whatIsBuilding}" MATCHES ".*e2e.*") AND ${nuget_e2e_tests})
+            )
+                windows_unittests_add_exe(${whatIsBuilding}_nuget ${ARGN})
+            else()
+                windows_unittests_add_exe(${whatIsBuilding} ${ARGN})
+                windows_unittests_add_dll(${whatIsBuilding} ${ARGN})
+            endif()
         endif()
     else()
         if(
