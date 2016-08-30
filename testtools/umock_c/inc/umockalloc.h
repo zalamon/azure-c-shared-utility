@@ -14,6 +14,7 @@ extern "C" {
 extern void* umockalloc_malloc(size_t size);
 extern void* umockalloc_realloc(void* ptr, size_t size);
 extern void umockalloc_free(void* ptr);
+extern char* umockc_stringify_buffer(const void* bytes, size_t length);
 
 #ifdef __cplusplus
 }

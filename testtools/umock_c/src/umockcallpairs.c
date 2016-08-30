@@ -59,7 +59,7 @@ int umockcallpairs_track_create_paired_call(PAIRED_HANDLES* paired_handles, cons
             {
                 size_t handle_type_length = strlen(handle_type);
 
-                paired_handles->paired_handles[paired_handles->paired_handle_count - 1].handle_type = umockalloc_malloc(handle_type_length + 1);
+                paired_handles->paired_handles[paired_handles->paired_handle_count - 1].handle_type = (char*)umockalloc_malloc(handle_type_length + 1);
                 if (paired_handles->paired_handles[paired_handles->paired_handle_count - 1].handle_type == NULL)
                 {
                     /* Codes_SRS_UMOCKCALLPAIRS_01_005: [ If allocating memory fails, umockcallpairs_track_create_paired_call shall fail and return a non-zero value. ]*/
