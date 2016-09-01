@@ -27,8 +27,6 @@ extern UMOCKCALL_HANDLE umock_c_get_last_expected_call(void);
 extern int umock_c_add_expected_call(UMOCKCALL_HANDLE mock_call);
 extern int umock_c_add_actual_call(UMOCKCALL_HANDLE mock_call, UMOCKCALL_HANDLE* matched_call);
 
-extern char* umockc_stringify_buffer(const void* bytes, size_t length);
-
 typedef struct ARG_BUFFER_TAG
 {
     void* bytes;
