@@ -35,7 +35,7 @@ extern "C" {
 
 /* Codes_SRS_UMOCK_C_LIB_01_181: [ If a value that is not part of the enum is used, it shall be treated as an int value. ]*/
 #define IMPLEMENT_UMOCK_C_ENUM_STRINGIFY(type, ...) \
-    char* C2(umocktypes_stringify_,type)(const type* value) \
+    UMOCK_STATIC char* C2(umocktypes_stringify_,type)(const type* value) \
     { \
         char* result; \
         static const char *C2(enum_name,_strings)[]= \
@@ -77,7 +77,7 @@ extern "C" {
     }
 
 #define IMPLEMENT_UMOCK_C_ENUM_ARE_EQUAL(type) \
-    int C2(umocktypes_are_equal_,type)(const type* left, const type* right) \
+    UMOCK_STATIC int C2(umocktypes_are_equal_,type)(const type* left, const type* right) \
     { \
         int result; \
         if ((left == NULL) || (right == NULL)) \
@@ -92,7 +92,7 @@ extern "C" {
     }
 
 #define IMPLEMENT_UMOCK_C_ENUM_COPY(type) \
-    int C2(umocktypes_copy_,type)(type* destination, const type* source) \
+    UMOCK_STATIC int C2(umocktypes_copy_,type)(type* destination, const type* source) \
     { \
         int result; \
         if ((destination == NULL) || \
@@ -109,7 +109,7 @@ extern "C" {
     }
 
 #define IMPLEMENT_UMOCK_C_ENUM_FREE(type) \
-    void C2(umocktypes_free_,type)(type* value) \
+    UMOCK_STATIC void C2(umocktypes_free_,type)(type* value) \
     { \
         (void)value; \
     }

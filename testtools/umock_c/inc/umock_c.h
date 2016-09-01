@@ -13,6 +13,11 @@ extern "C" {
 #include "azure_c_shared_utility/macro_utils.h"
 #include "umockcallrecorder.h"
 
+/* Define UMOCK_STATIC to static to make mocks private to compilation unit */
+#ifndef UMOCK_STATIC
+#define UMOCK_STATIC
+#endif
+
 #define UMOCK_C_ERROR_CODE_VALUES \
         UMOCK_C_ARG_INDEX_OUT_OF_RANGE, \
         UMOCK_C_MALLOC_ERROR, \

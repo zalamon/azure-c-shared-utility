@@ -613,7 +613,7 @@ typedef int(*TRACK_DESTROY_FUNC_TYPE)(PAIRED_HANDLES* paired_handles, const void
     }
 
 #define IMPLEMENT_MOCK_FUNCTION(function_prefix, args_ignored, return_type, name, ...) \
-	C2(mock_call_modifier_,name) C2(function_prefix,name)(IF(COUNT_ARG(__VA_ARGS__),,void) FOR_EACH_2_COUNTED(ARG_IN_SIGNATURE, __VA_ARGS__)) \
+	C2(mock_call_modifier_,name) UMOCK_STATIC C2(function_prefix,name)(IF(COUNT_ARG(__VA_ARGS__),,void) FOR_EACH_2_COUNTED(ARG_IN_SIGNATURE, __VA_ARGS__)) \
 	{ \
         UMOCKCALL_HANDLE mock_call; \
         DECLARE_MOCK_CALL_MODIFIER(name) \
@@ -649,7 +649,7 @@ typedef int(*TRACK_DESTROY_FUNC_TYPE)(PAIRED_HANDLES* paired_handles, const void
 /* Codes_SRS_UMOCK_C_LIB_01_107: [If there are multiple invocations of REGISTER_GLOBAL_MOCK_HOOK, the last one shall take effect over the previous ones.] */
 /* Codes_SRS_UMOCK_C_LIB_01_134: [ REGISTER_GLOBAL_MOCK_HOOK called with a NULL hook unregisters a previously registered hook. ]*/
 #define IMPLEMENT_REGISTER_GLOBAL_MOCK_HOOK(return_type, name, ...) \
-    void C2(set_global_mock_hook_,name)(C2(mock_hook_func_type_, name) mock_return_hook) \
+    UMOCK_STATIC void C2(set_global_mock_hook_,name)(C2(mock_hook_func_type_, name) mock_return_hook) \
     { \
         C2(mock_hook_,name) = mock_return_hook; \
     } \
@@ -658,7 +658,7 @@ typedef int(*TRACK_DESTROY_FUNC_TYPE)(PAIRED_HANDLES* paired_handles, const void
 /* Codes_SRS_UMOCK_C_LIB_01_109: [If there are multiple invocations of REGISTER_GLOBAL_MOCK_RETURN, the last one shall take effect over the previous ones.]*/
 /* Codes_SRS_UMOCK_C_LIB_01_141: [ If any error occurs during REGISTER_GLOBAL_MOCK_RETURN, umock_c shall raise an error with the code UMOCK_C_ERROR. ]*/
 #define IMPLEMENT_REGISTER_GLOBAL_MOCK_RETURN(return_type, name, ...) \
-    IF(IS_NOT_VOID(return_type), void C2(set_global_mock_return_, name)(return_type return_value) \
+    IF(IS_NOT_VOID(return_type), UMOCK_STATIC void C2(set_global_mock_return_, name)(return_type return_value) \
     { \
         C2(mock_call_default_result_,name) = return_value; \
     }, ) \
@@ -667,7 +667,7 @@ typedef int(*TRACK_DESTROY_FUNC_TYPE)(PAIRED_HANDLES* paired_handles, const void
 /* Codes_SRS_UMOCK_C_LIB_01_112: [If there are multiple invocations of REGISTER_GLOBAL_FAIL_MOCK_RETURN, the last one shall take effect over the previous ones.]*/
 /* Codes_SRS_UMOCK_C_LIB_01_142: [ If any error occurs during REGISTER_GLOBAL_MOCK_FAIL_RETURN, umock_c shall raise an error with the code UMOCK_C_ERROR. ]*/
 #define IMPLEMENT_REGISTER_GLOBAL_MOCK_FAIL_RETURN(return_type, name, ...) \
-    IF(IS_NOT_VOID(return_type), void C2(set_global_mock_fail_return_, name)(return_type fail_return_value) \
+    IF(IS_NOT_VOID(return_type), UMOCK_STATIC void C2(set_global_mock_fail_return_, name)(return_type fail_return_value) \
     { \
         C2(mock_call_fail_result_,name) = fail_return_value; \
     }, ) \
@@ -676,7 +676,7 @@ typedef int(*TRACK_DESTROY_FUNC_TYPE)(PAIRED_HANDLES* paired_handles, const void
 /* Codes_SRS_UMOCK_C_LIB_01_114: [If there are multiple invocations of REGISTER_GLOBAL_MOCK_RETURNS, the last one shall take effect over the previous ones.]*/
 /* Codes_SRS_UMOCK_C_LIB_01_143: [ If any error occurs during REGISTER_GLOBAL_MOCK_RETURNS, umock_c shall raise an error with the code UMOCK_C_ERROR. ]*/
 #define IMPLEMENT_REGISTER_GLOBAL_MOCK_RETURNS(return_type, name, ...) \
-    IF(IS_NOT_VOID(return_type), void C2(set_global_mock_returns_, name)(return_type return_value, return_type fail_return_value) \
+    IF(IS_NOT_VOID(return_type), UMOCK_STATIC void C2(set_global_mock_returns_, name)(return_type return_value, return_type fail_return_value) \
     { \
         C2(mock_call_default_result_,name) = return_value; \
         C2(mock_call_fail_result_,name) = fail_return_value; \
@@ -831,7 +831,7 @@ typedef struct MOCK_CALL_METADATA_TAG
         IF(COUNT_ARG(__VA_ARGS__), FOR_EACH_2(DECLARE_IGNORE_FLAG_FOR_ARG, __VA_ARGS__),) \
         IF(COUNT_ARG(__VA_ARGS__), , IF(IS_NOT_VOID(return_type),, int dummy : 1;)) \
     } C2(mock_call_,name); \
-    char* C2(mock_call_data_stringify_,name)(void* mock_call_data) \
+    UMOCK_STATIC char* C2(mock_call_data_stringify_,name)(void* mock_call_data) \
     { \
         char* result; \
         IF(COUNT_ARG(__VA_ARGS__), C2(mock_call_,name)* typed_mock_call_data = (C2(mock_call_,name)*)mock_call_data;,(void)mock_call_data;) \
@@ -867,7 +867,7 @@ typedef struct MOCK_CALL_METADATA_TAG
         IF(COUNT_ARG(__VA_ARGS__), FOR_EACH_2(STRINGIFY_ARGS_FREE_STRINGIFIED_ARG, __VA_ARGS__), ) \
         return result; \
     } \
-    int C2(mock_call_data_are_equal_,name)(void* left, void* right) \
+    UMOCK_STATIC int C2(mock_call_data_are_equal_,name)(void* left, void* right) \
     { \
         int result; \
         if (left == right) \
@@ -888,7 +888,7 @@ typedef struct MOCK_CALL_METADATA_TAG
         } \
         return result; \
     } \
-    void C2(mock_call_data_free_func_,name)(void* mock_call_data) \
+    UMOCK_STATIC void C2(mock_call_data_free_func_,name)(void* mock_call_data) \
     { \
         C2(mock_call_,name)* typed_mock_call_data = (C2(mock_call_,name)*)mock_call_data; \
         IF(COUNT_ARG(__VA_ARGS__), FOR_EACH_2_COUNTED(FREE_ARG_VALUE, __VA_ARGS__),) \
@@ -904,7 +904,7 @@ typedef struct MOCK_CALL_METADATA_TAG
         },) \
         umockalloc_free(typed_mock_call_data); \
     } \
-    void* C2(mock_call_data_copy_func_,name)(void* mock_call_data) \
+    UMOCK_STATIC void* C2(mock_call_data_copy_func_,name)(void* mock_call_data) \
     { \
         (void)mock_call_data; \
         C2(mock_call_,name)* result = (C2(mock_call_,name)*)umockalloc_malloc(sizeof(C2(mock_call_,name))); \
@@ -957,7 +957,7 @@ typedef struct MOCK_CALL_METADATA_TAG
 /* Codes_SRS_UMOCK_C_LIB_01_195: [ If any error occurs during the destroy_call related then umock_c shall raise an error with the code UMOCK_C_ERROR. ]*/
 /* Codes_SRS_UMOCK_C_LIB_01_194: [ If the first argument passed to destroy_call is not found in the list of tracked handles (returned by create_call) then umock_c shall raise an error with the code UMOCK_C_INVALID_PAIRED_CALLS. ]*/
 #define MOCKABLE_FUNCTION_BODY_WITHOUT_RETURN(modifiers, return_type, name, ...) \
-    return_type modifiers name(IF(COUNT_ARG(__VA_ARGS__),,void) FOR_EACH_2_COUNTED(ARG_IN_SIGNATURE, __VA_ARGS__)) \
+    UMOCK_STATIC return_type modifiers name(IF(COUNT_ARG(__VA_ARGS__),,void) FOR_EACH_2_COUNTED(ARG_IN_SIGNATURE, __VA_ARGS__)) \
 	{ \
         UMOCKCALL_HANDLE mock_call; \
         UMOCKCALL_HANDLE matched_call; \
@@ -1108,7 +1108,7 @@ typedef struct MOCK_CALL_METADATA_TAG
 #define REGISTER_UMOCKC_PAIRED_CREATE_DESTROY_CALLS(create_call, destroy_call) \
     if ((strcmp(C2(mock_call_metadata_,create_call).return_type, "void") == 0) || \
         (C2(mock_call_metadata_,destroy_call).arg_count == 0) || \
-        (strcmp(C2(mock_call_metadata_, create_call).return_type, C2(mock_call_metadata_, destroy_call).args[0].type) != 0)) \
+        (strcmp(C2(mock_call_metadata_,create_call).return_type, C2(mock_call_metadata_, destroy_call).args[0].type) != 0)) \
     { \
         umock_c_indicate_error(UMOCK_C_INVALID_PAIRED_CALLS); \
     } \
