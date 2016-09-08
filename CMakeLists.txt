@@ -205,11 +205,11 @@ function(set_test_target_folder whatIsBuilding ext)
     if("${whatIsBuilding}" MATCHES ".*e2e.*")
         set_target_properties(${whatIsBuilding}_${ext}
                    PROPERTIES
-                   FOLDER "E2ETests")
+                   FOLDER "tests/E2ETests")
     else()
         set_target_properties(${whatIsBuilding}_${ext}
                    PROPERTIES
-                   FOLDER "UnitTests")
+                   FOLDER "tests/UnitTests")
     endif()
 endfunction()
 
@@ -805,9 +805,6 @@ if (NOT ${skip_unittests})
     add_subdirectory(tests)
 endif()
 
-if(WIN32)
-else()
-    install (TARGETS aziotsharedutil DESTINATION lib)
-    install (FILES ${source_h_files} DESTINATION include/azureiot/azure_c_shared_utility)
-endif (WIN32)
-
+# Install Azure C Shared Utility
+install (TARGETS aziotsharedutil DESTINATION lib)
+install (FILES ${source_h_files} DESTINATION include/azureiot/azure_c_shared_utility)
