@@ -66,9 +66,15 @@ if(MSVC)
         SET_SOURCE_FILES_PROPERTIES(src/consolelogger.c src/xlogging.c src/map.c adapters/uniqueid_win32.c adapters/httpapi_wince.c src/tlsio_schannel.c src/x509_schannel.c PROPERTIES LANGUAGE CXX)
         add_definitions(-DWIN32) #WEC 2013 
     ELSE()
+	
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
-  
+		
+		if(${use_openssl})
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_OPENSSL")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_OPENSSL")
+		endif()
+
     endif()
 elseif(LINUX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -805,6 +811,9 @@ if (NOT ${skip_unittests})
     add_subdirectory(tests)
 endif()
 
+# Set CMAKE_INSTALL_* if not defined
+include(GNUInstallDirs)
+
 # Install Azure C Shared Utility
-install (TARGETS aziotsharedutil DESTINATION lib)
-install (FILES ${source_h_files} DESTINATION include/azureiot/azure_c_shared_utility)
+install (TARGETS aziotsharedutil DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install (FILES ${source_h_files} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/azureiot/azure_c_shared_utility)

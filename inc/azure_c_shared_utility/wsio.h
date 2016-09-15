@@ -24,7 +24,6 @@ typedef struct WSIO_CONFIG_TAG
 	const char* protocol_name;
 	const char* relative_path;
 	bool use_ssl;
-	const char* trusted_ca;
 } WSIO_CONFIG;
 
 MOCKABLE_FUNCTION(, CONCRETE_IO_HANDLE, wsio_create, void*, io_create_parameters);
@@ -34,8 +33,8 @@ MOCKABLE_FUNCTION(, int, wsio_close, CONCRETE_IO_HANDLE, ws_io, ON_IO_CLOSE_COMP
 MOCKABLE_FUNCTION(, int, wsio_send, CONCRETE_IO_HANDLE, ws_io, const void*, buffer, size_t, size, ON_SEND_COMPLETE, on_send_complete, void*, callback_context);
 MOCKABLE_FUNCTION(, void, wsio_dowork, CONCRETE_IO_HANDLE, ws_io);
 MOCKABLE_FUNCTION(, int, wsio_setoption, CONCRETE_IO_HANDLE, socket_io, const char*, optionName, const void*, value);
-MOCKABLE_FUNCTION(, void*, wsio_CloneOption, const char*, name, const void*, value);
-MOCKABLE_FUNCTION(, void, wsio_DestroyOption, const char*, name, const void*, value);
+MOCKABLE_FUNCTION(, void*, wsio_clone_option, const char*, name, const void*, value);
+MOCKABLE_FUNCTION(, void, wsio_destroy_option, const char*, name, const void*, value);
 MOCKABLE_FUNCTION(, OPTIONHANDLER_HANDLE, wsio_retrieveoptions, CONCRETE_IO_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, const IO_INTERFACE_DESCRIPTION*, wsio_get_interface_description);
