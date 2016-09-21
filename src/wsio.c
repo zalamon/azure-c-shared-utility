@@ -400,6 +400,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
         if (wsio_instance->io_state == IO_STATE_OPEN)
         {
             /* parse each frame */
+            LogInfo("Got a frame?");
         }
     }
 }

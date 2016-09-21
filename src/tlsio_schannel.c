@@ -37,8 +37,8 @@ typedef enum TLSIO_STATE_TAG
     TLSIO_STATE_NOT_OPEN,
     TLSIO_STATE_OPENING_UNDERLYING_IO,
     TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT,
-    TLSIO_STATE_HANDSHAKE_SERVER_HELLO_RECEIVED,
     TLSIO_STATE_OPEN,
+    TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT_RENEGOTIATE,
     TLSIO_STATE_CLOSING,
     TLSIO_STATE_ERROR
 } TLSIO_STATE;
@@ -403,8 +403,10 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
         /* Drain what we received */
         while (tls_io_instance->needed_bytes == 0)
         {
-            if (tls_io_instance->tlsio_state == TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT)
+            if ((tls_io_instance->tlsio_state == TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT) ||
+                (tls_io_instance->tlsio_state == TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT_RENEGOTIATE))
             {
+                unsigned char is_renegotiate = (tls_io_instance->tlsio_state == TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT_RENEGOTIATE) ? 1 : 0;
                 SecBuffer input_buffers[2];
                 SecBuffer output_buffers[2];
                 ULONG context_attributes;
@@ -458,9 +460,16 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     if (resize_receive_buffer(tls_io_instance, tls_io_instance->received_byte_count + tls_io_instance->needed_bytes) != 0)
                     {
                         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
-                        if (tls_io_instance->on_io_open_complete != NULL)
+                        if (is_renegotiate == 0)
                         {
-                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR);
+                            if (tls_io_instance->on_io_open_complete != NULL)
+                            {
+                                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR);
+                            }
+                        }
+                        else
+                        {
+                            indicate_error(tls_io_instance);
                         }
                     }
 
@@ -481,17 +490,27 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     if (set_receive_buffer(tls_io_instance, tls_io_instance->needed_bytes + tls_io_instance->received_byte_count) != 0)
                     {
                         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
-                        if (tls_io_instance->on_io_open_complete != NULL)
+                        if (is_renegotiate == 0)
                         {
-                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR);
+                            if (tls_io_instance->on_io_open_complete != NULL)
+                            {
+                                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR);
+                            }
+                        }
+                        else
+                        {
+                            indicate_error(tls_io_instance);
                         }
                     }
                     else
                     {
                         tls_io_instance->tlsio_state = TLSIO_STATE_OPEN;
-                        if (tls_io_instance->on_io_open_complete != NULL)
+                        if (is_renegotiate == 0)
                         {
-                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_OK);
+                            if (tls_io_instance->on_io_open_complete != NULL)
+                            {
+                                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_OK);
+                            }
                         }
                     }
                     break;
@@ -597,6 +616,68 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         indicate_error(tls_io_instance);
                     }
                     break;
+
+                case SEC_I_RENEGOTIATE:
+                {
+                    SecBuffer init_security_buffers[2];
+                    ULONG context_attributes;
+
+                    consumed_bytes = tls_io_instance->received_byte_count;
+
+                    for (size_t i = 0; i < sizeof(security_buffers) / sizeof(security_buffers[0]); i++)
+                    {
+                        /* Any extra bytes left over or did we fully consume the receive buffer? */
+                        if (security_buffers[i].BufferType == SECBUFFER_EXTRA)
+                        {
+                            consumed_bytes -= security_buffers[i].cbBuffer;
+                            (void)memmove(tls_io_instance->received_bytes, tls_io_instance->received_bytes + consumed_bytes, tls_io_instance->received_byte_count - consumed_bytes);
+                            break;
+                        }
+                    }
+                    tls_io_instance->received_byte_count -= consumed_bytes;
+
+                        init_security_buffers[0].cbBuffer = 0;
+                        init_security_buffers[0].BufferType = SECBUFFER_EMPTY;
+                        init_security_buffers[0].pvBuffer = NULL;
+                        init_security_buffers[1].cbBuffer = 0;
+                        init_security_buffers[1].BufferType = SECBUFFER_EMPTY;
+                        init_security_buffers[1].pvBuffer = 0;
+
+                        security_buffers_desc.cBuffers = 2;
+                        security_buffers_desc.pBuffers = init_security_buffers;
+                        security_buffers_desc.ulVersion = SECBUFFER_VERSION;
+
+                        status = InitializeSecurityContext(&tls_io_instance->credential_handle,
+                            NULL, tls_io_instance->host_name, ISC_REQ_EXTENDED_ERROR | ISC_REQ_STREAM | ISC_REQ_ALLOCATE_MEMORY, 0, 0, NULL, 0,
+                            &tls_io_instance->security_context, &security_buffers_desc,
+                            &context_attributes, NULL);
+
+
+                        if ((status == SEC_I_COMPLETE_NEEDED) || (status == SEC_I_CONTINUE_NEEDED) || (status == SEC_I_COMPLETE_AND_CONTINUE))
+                        {
+                            if (xio_send(tls_io_instance->socket_io, init_security_buffers[0].pvBuffer, init_security_buffers[0].cbBuffer, NULL, NULL) != 0)
+                            {
+                                tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
+                                indicate_error(tls_io_instance);
+                            }
+                            else
+                            {
+                                /* set the needed bytes to 1, to get on the next byte how many we actually need */
+                                tls_io_instance->needed_bytes = 1;
+                                if (resize_receive_buffer(tls_io_instance, tls_io_instance->needed_bytes + tls_io_instance->received_byte_count) != 0)
+                                {
+                                    tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
+                                    indicate_error(tls_io_instance);
+                                }
+                                else
+                                {
+                                    tls_io_instance->tlsio_state = TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT_RENEGOTIATE;
+                                }
+                            }
+                    }
+                    break;
+                }
+
                 case SEC_E_OK:
                     if (security_buffers[1].BufferType != SECBUFFER_DATA)
                     {
@@ -678,7 +759,7 @@ static void on_underlying_io_error(void* context)
 
     case TLSIO_STATE_OPENING_UNDERLYING_IO:
     case TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT:
-    case TLSIO_STATE_HANDSHAKE_SERVER_HELLO_RECEIVED:
+    case TLSIO_STATE_HANDSHAKE_CLIENT_HELLO_SENT_RENEGOTIATE:
         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
         if (tls_io_instance->on_io_open_complete != NULL)
         {
