@@ -200,21 +200,21 @@ static void send_pending_ios(WSIO_INSTANCE* wsio_instance)
                 else if (pending_socket_io->size < 65536)
                 {
                     ws_buffer[1] |= 126;
-                    ws_buffer[2] |= (pending_socket_io->size & 0xFF);
-                    ws_buffer[3] |= (pending_socket_io->size >> 8);
+                    ws_buffer[2] = (unsigned char)(pending_socket_io->size >> 8);
+                    ws_buffer[3] = (unsigned char)(pending_socket_io->size & 0xFF);
                     pos = 4;
                 }
                 else
                 {
                     ws_buffer[1] |= 127;
-                    ws_buffer[2] |= ((uint64_t)pending_socket_io->size & 0xFF);
-                    ws_buffer[3] |= ((uint64_t)pending_socket_io->size >> 8) & 0xFF;
-                    ws_buffer[4] |= ((uint64_t)pending_socket_io->size >> 16) & 0xFF;
-                    ws_buffer[5] |= ((uint64_t)pending_socket_io->size >> 24) & 0xFF;
-                    ws_buffer[6] |= ((uint64_t)pending_socket_io->size >> 32) & 0xFF;
-                    ws_buffer[7] |= ((uint64_t)pending_socket_io->size >> 40) & 0xFF;
-                    ws_buffer[8] |= ((uint64_t)pending_socket_io->size >> 48) & 0xFF;
-                    ws_buffer[9] |= ((uint64_t)pending_socket_io->size >> 56) & 0xFF;
+                    ws_buffer[2] = ((uint64_t)pending_socket_io->size >> 56) & 0xFF;
+                    ws_buffer[3] = ((uint64_t)pending_socket_io->size >> 48) & 0xFF;
+                    ws_buffer[4] = ((uint64_t)pending_socket_io->size >> 40) & 0xFF;
+                    ws_buffer[5] = ((uint64_t)pending_socket_io->size >> 32) & 0xFF;
+                    ws_buffer[6] = ((uint64_t)pending_socket_io->size >> 24) & 0xFF;
+                    ws_buffer[7] = ((uint64_t)pending_socket_io->size >> 16) & 0xFF;
+                    ws_buffer[8] = ((uint64_t)pending_socket_io->size >> 8) & 0xFF;
+                    ws_buffer[9] = ((uint64_t)pending_socket_io->size & 0xFF);
                     pos = 10;
                 }
 
@@ -224,20 +224,23 @@ static void send_pending_ios(WSIO_INSTANCE* wsio_instance)
                 ws_buffer[pos++] = 0x00;
                 ws_buffer[pos++] = 0x00;
 
-                ws_buffer[0] = 0x82;
-                ws_buffer[1] = 0xFE;
-                //ws_buffer[0] = 1 + (2 << 4);
-                //ws_buffer[1] = 1 + (126 << 1);
+/*                ws_buffer[0] = 0x82;
+                ws_buffer[1] = 0x8E;
                 ws_buffer[2] = 0x00;
                 ws_buffer[3] = 0x08;
+                //ws_buffer[0] = 1 + (2 << 4);
+                //ws_buffer[1] = 1 + (126 << 1);
                 ws_buffer[4] = 0x00;
                 ws_buffer[5] = 0x00;
                 ws_buffer[6] = 0x00;
                 ws_buffer[7] = 0x00;
-                pos = 8;
+                pos = 8;*/
 
                 (void)memcpy(ws_buffer + pos, pending_socket_io->bytes, pending_socket_io->size);
                 pos += pending_socket_io->size;
+
+                /*unsigned char fake_one[] =
+                { 0x82, 0x88, 0xb3, 0xa6, 0xdb, 0x3c, 0xf2, 0xeb, 0x8a, 0x6c, 0xb0, 0xa7, 0xdb, 0x3c };*/
 
                 /*unsigned char fake_one[] = 
                 {
@@ -777,6 +780,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                 needed_bytes = 2;
                 if (wsio_instance->received_byte_count >= needed_bytes)
                 {
+                    unsigned char frame_type = wsio_instance->received_bytes[0] & 0xF;
                     uint64_t payload_len = wsio_instance->received_bytes[1] & 0x7F;
                     if (payload_len == 126)
                     {
@@ -809,12 +813,24 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         needed_bytes += (size_t)payload_len;
                     }
 
-                    needed_bytes += 4;
+                    if ((wsio_instance->received_bytes[1] & 0x80) != 0)
+                    {
+                        needed_bytes += 4;
+                    }
 
                     if (wsio_instance->received_byte_count >= needed_bytes)
                     {
                         /* got the frame */
-                        wsio_instance->on_bytes_received(wsio_instance->on_bytes_received_context, wsio_instance->received_bytes + 14, (size_t)payload_len);
+                        if (frame_type == 0x2)
+                        {
+                            wsio_instance->on_bytes_received(wsio_instance->on_bytes_received_context, wsio_instance->received_bytes + needed_bytes - payload_len, (size_t)payload_len);
+                        }
+
+                        if (wsio_instance->received_byte_count > needed_bytes)
+                        {
+                            memmove(wsio_instance->received_bytes, wsio_instance->received_bytes + needed_bytes, wsio_instance->received_byte_count - needed_bytes);
+                        }
+                        wsio_instance->received_byte_count -= needed_bytes;
                     }
                 }
             }
