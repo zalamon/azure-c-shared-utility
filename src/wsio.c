@@ -226,6 +226,8 @@ static void send_pending_ios(WSIO_INSTANCE* wsio_instance)
 
                 ws_buffer[0] = 0x82;
                 ws_buffer[1] = 0xFE;
+                //ws_buffer[0] = 1 + (2 << 4);
+                //ws_buffer[1] = 1 + (126 << 1);
                 ws_buffer[2] = 0x00;
                 ws_buffer[3] = 0x08;
                 ws_buffer[4] = 0x00;
@@ -237,7 +239,7 @@ static void send_pending_ios(WSIO_INSTANCE* wsio_instance)
                 (void)memcpy(ws_buffer + pos, pending_socket_io->bytes, pending_socket_io->size);
                 pos += pending_socket_io->size;
 
-                unsigned char fake_one[] = 
+                /*unsigned char fake_one[] = 
                 {
                     0x82,
                     0xFE,
@@ -579,10 +581,10 @@ static void send_pending_ios(WSIO_INSTANCE* wsio_instance)
                     0x35,
                     0x38,
                     0x38
-                };
+                };*/
 
-                if (xio_send(wsio_instance->underlying_io, fake_one, sizeof(fake_one), pending_socket_io->on_send_complete, pending_socket_io->callback_context) != 0)
-                //if (xio_send(wsio_instance->underlying_io, ws_buffer, pos, pending_socket_io->on_send_complete, pending_socket_io->callback_context) != 0)
+                //if (xio_send(wsio_instance->underlying_io, fake_one, sizeof(fake_one), pending_socket_io->on_send_complete, pending_socket_io->callback_context) != 0)
+                if (xio_send(wsio_instance->underlying_io, ws_buffer, pos, pending_socket_io->on_send_complete, pending_socket_io->callback_context) != 0)
                 {
                     indicate_error(wsio_instance);
                 }

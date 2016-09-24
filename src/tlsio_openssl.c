@@ -652,7 +652,7 @@ static int decode_ssl_received_bytes(TLS_IO_INSTANCE* tls_io_instance)
 		{
 			result = __LINE__;
 			LogError("SSL channel closed in decode_ssl_received_bytes.");
-			return result;
+            break;
 		}
 
         rcv_bytes = SSL_read(tls_io_instance->ssl, buffer, sizeof(buffer));
@@ -666,6 +666,13 @@ static int decode_ssl_received_bytes(TLS_IO_INSTANCE* tls_io_instance)
             {
                 tls_io_instance->on_bytes_received(tls_io_instance->on_bytes_received_context, buffer, rcv_bytes);
             }
+        }
+        else if (SSL_get_error(tls_io_instance->ssl, rcv_bytes) == SSL_ERROR_WANT_READ)
+        {
+            printf("Want read");
+        } else if (SSL_get_error(tls_io_instance->ssl, rcv_bytes) == SSL_ERROR_WANT_WRITE)
+        {
+            printf("Want write");
         }
     }
 
@@ -775,6 +782,38 @@ static int add_certificate_to_store(TLS_IO_INSTANCE* tls_io_instance, const char
     }
     return result;
 }
+
+#define SSL_WHERE_INFO(ssl, w, flag, msg) {                \
+    if(w & flag) {                                         \
+      printf("+ %s: ", name);                              \
+      printf("%20.20s", msg);                              \
+      printf(" - %30.30s ", SSL_state_string_long(ssl));   \
+      printf(" - %5.10s ", SSL_state_string(ssl));         \
+      printf("\n");                                        \
+    }                                                      \
+  } 
+
+typedef void(*info_callback)();
+
+static void krx_ssl_info_callback(const SSL* ssl, int where, int ret, const char* name) {
+
+    if (ret == 0) {
+        printf("-- krx_ssl_info_callback: error occured.\n");
+        return;
+    }
+
+    SSL_WHERE_INFO(ssl, where, SSL_CB_LOOP, "LOOP");
+    SSL_WHERE_INFO(ssl, where, SSL_CB_HANDSHAKE_START, "HANDSHAKE START");
+    SSL_WHERE_INFO(ssl, where, SSL_CB_HANDSHAKE_DONE, "HANDSHAKE DONE");
+}
+
+static void krx_ssl_server_info_callback(const SSL* ssl, int where, int ret) {
+    krx_ssl_info_callback(ssl, where, ret, "server");
+}
+static void krx_ssl_client_info_callback(const SSL* ssl, int where, int ret) {
+    krx_ssl_info_callback(ssl, where, ret, "client");
+}
+
 
 static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
 {
@@ -893,6 +932,8 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
                         }
                         else
                         {
+                            SSL_set_info_callback(tlsInstance->ssl, krx_ssl_client_info_callback);
+
                             SSL_set_bio(tlsInstance->ssl, tlsInstance->in_bio, tlsInstance->out_bio);
                             SSL_set_connect_state(tlsInstance->ssl);
                             result = 0;
@@ -1170,6 +1211,7 @@ void tlsio_openssl_dowork(CONCRETE_IO_HANDLE tls_io)
         if ((tls_io_instance->tlsio_state != TLSIO_STATE_NOT_OPEN) &&
             (tls_io_instance->tlsio_state != TLSIO_STATE_ERROR))
         {
+            write_outgoing_bytes(tls_io_instance, NULL, NULL);
             xio_dowork(tls_io_instance->underlying_io);
         }
     }
