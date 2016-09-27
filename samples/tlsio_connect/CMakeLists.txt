@@ -3,7 +3,7 @@
 
 compileAsC99()
 
-set(azure_c_shared_hello_world_c_files
+set(tlsio_connect_c_files
     main.c
 )
 
@@ -13,12 +13,17 @@ IF(WIN32)
     add_definitions(-DGB_MEASURE_MEMORY_FOR_THIS -DGB_DEBUG_ALLOC)
 ENDIF(WIN32)
 
-add_executable(azure_c_shared_hello_world ${azure_c_shared_hello_world_c_files})
+add_executable(tlsio_connect ${tlsio_connect_c_files})
 
-target_link_libraries(azure_c_shared_hello_world 
+target_link_libraries(tlsio_connect 
     aziotsharedutil
 )
 
-set_target_properties(azure_c_shared_hello_world
+if(${use_openssl} AND WIN32)
+	file(COPY $ENV{OpenSSLDir}/bin/libeay32.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+	file(COPY $ENV{OpenSSLDir}/bin/ssleay32.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
+set_target_properties(tlsio_connect
 			   PROPERTIES
 			   FOLDER "azure_c_shared_utility_samples")
