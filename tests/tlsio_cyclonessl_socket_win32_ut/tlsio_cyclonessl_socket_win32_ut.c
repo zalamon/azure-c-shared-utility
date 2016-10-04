@@ -41,7 +41,7 @@ static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
     ASSERT_FAIL(temp_str);
 }
 
-BEGIN_TEST_SUITE(tlsio_cyclonessl_unittests)
+BEGIN_TEST_SUITE(tlsio_cyclonessl_socket_win32_unittests)
 
 TEST_SUITE_INITIALIZE(suite_init)
 {
@@ -219,4 +219,4 @@ TEST_FUNCTION(tickcounter_get_current_ms_succeed)
 //    tickcounter_destroy(tickHandle);
 //}
 
-END_TEST_SUITE(tlsio_cyclonessl_unittests)
+END_TEST_SUITE(tlsio_cyclonessl_socket_win32_unittests)
