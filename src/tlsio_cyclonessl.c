@@ -483,7 +483,7 @@ int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io
     return result;
 }
 
-int tlsio_cyclonessl_send(CONCRETE_IO_HANDLE tls_io, const void* buffer, size_t size, ON_SEND_COMPLETE on_send_complete, void* on_send_complete_context)
+static int tlsio_cyclonessl_send(CONCRETE_IO_HANDLE tls_io, const void* buffer, size_t size, ON_SEND_COMPLETE on_send_complete, void* on_send_complete_context)
 {
     int result;
 
@@ -518,7 +518,7 @@ int tlsio_cyclonessl_send(CONCRETE_IO_HANDLE tls_io, const void* buffer, size_t 
     return result;
 }
 
-void tlsio_cyclonessl_dowork(CONCRETE_IO_HANDLE tls_io)
+static void tlsio_cyclonessl_dowork(CONCRETE_IO_HANDLE tls_io)
 {
     if (tls_io == NULL)
     {
@@ -552,7 +552,7 @@ void tlsio_cyclonessl_dowork(CONCRETE_IO_HANDLE tls_io)
     }
 }
 
-int tlsio_cyclonessl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, const void* value)
+static int tlsio_cyclonessl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, const void* value)
 {
     int result;
 

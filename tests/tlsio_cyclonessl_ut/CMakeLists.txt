@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 2.8.11)
 
 compileAsC11()
-set(theseTestsName tlsio_cyclonessl_win32_ut)
+set(theseTestsName tlsio_cyclonessl_ut)
 
 set(${theseTestsName}_test_files
 ${theseTestsName}.c
