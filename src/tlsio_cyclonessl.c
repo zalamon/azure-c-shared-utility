@@ -37,12 +37,8 @@ typedef enum TLSIO_STATE_TAG
 typedef struct TLS_IO_INSTANCE_TAG
 {
     ON_BYTES_RECEIVED on_bytes_received;
-    ON_IO_OPEN_COMPLETE on_io_open_complete;
-    ON_IO_CLOSE_COMPLETE on_io_close_complete;
     ON_IO_ERROR on_io_error;
     void* on_bytes_received_context;
-    void* on_io_open_complete_context;
-    void* on_io_close_complete_context;
     void* on_io_error_context;
     TLSIO_STATE tlsio_state;
     char* hostname;
@@ -54,7 +50,7 @@ typedef struct TLS_IO_INSTANCE_TAG
 } TLS_IO_INSTANCE;
 
 /*this function will clone an option given by name and value*/
-static void* tlsio_cyclonessl_CloneOption(const char* name, const void* value)
+void* tlsio_cyclonessl_clone_option(const char* name, const void* value)
 {
     void* result;
     if(
@@ -88,7 +84,7 @@ static void* tlsio_cyclonessl_CloneOption(const char* name, const void* value)
 }
 
 /*this function destroys an option previously created*/
-static void tlsio_cyclonessl_DestroyOption(const char* name, const void* value)
+void tlsio_cyclonessl_destroy_option(const char* name, const void* value)
 {
     /*since all options for this layer are actually string copies., disposing of one is just calling free*/
     if (
@@ -110,7 +106,7 @@ static void tlsio_cyclonessl_DestroyOption(const char* name, const void* value)
     }
 }
 
-static OPTIONHANDLER_HANDLE tlsio_cyclonessl_retrieveoptions(CONCRETE_IO_HANDLE handle)
+static OPTIONHANDLER_HANDLE tlsio_cyclonessl_retrieve_options(CONCRETE_IO_HANDLE handle)
 {
     OPTIONHANDLER_HANDLE result;
     if(handle == NULL)
@@ -120,7 +116,7 @@ static OPTIONHANDLER_HANDLE tlsio_cyclonessl_retrieveoptions(CONCRETE_IO_HANDLE 
     }
     else
     {
-        result = OptionHandler_Create(tlsio_cyclonessl_CloneOption, tlsio_cyclonessl_DestroyOption, tlsio_cyclonessl_setoption);
+        result = OptionHandler_Create(tlsio_cyclonessl_clone_option, tlsio_cyclonessl_destroy_option, tlsio_cyclonessl_setoption);
         if (result == NULL)
         {
             LogError("unable to OptionHandler_Create");
@@ -151,7 +147,7 @@ static OPTIONHANDLER_HANDLE tlsio_cyclonessl_retrieveoptions(CONCRETE_IO_HANDLE 
 
 static const IO_INTERFACE_DESCRIPTION tlsio_cyclonessl_interface_description =
 {
-    tlsio_cyclonessl_retrieveoptions,
+    tlsio_cyclonessl_retrieve_options,
     tlsio_cyclonessl_create,
     tlsio_cyclonessl_destroy,
     tlsio_cyclonessl_open,
@@ -160,18 +156,6 @@ static const IO_INTERFACE_DESCRIPTION tlsio_cyclonessl_interface_description =
     tlsio_cyclonessl_dowork,
     tlsio_cyclonessl_setoption
 };
-
-static void indicate_open_complete(TLS_IO_INSTANCE* tls_io_instance, IO_OPEN_RESULT open_result)
-{
-    if (tls_io_instance->on_io_open_complete == NULL)
-    {
-        LogError("NULL on_io_open_complete.");
-    }
-    else
-    {
-        tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, open_result);
-    }
-}
 
 CONCRETE_IO_HANDLE tlsio_cyclonessl_create(void* io_create_parameters)
 {
@@ -203,12 +187,6 @@ CONCRETE_IO_HANDLE tlsio_cyclonessl_create(void* io_create_parameters)
 
             result->on_bytes_received = NULL;
             result->on_bytes_received_context = NULL;
-
-            result->on_io_open_complete = NULL;
-            result->on_io_open_complete_context = NULL;
-
-            result->on_io_close_complete = NULL;
-            result->on_io_close_complete_context = NULL;
 
             result->on_io_error = NULL;
             result->on_io_error_context = NULL;
@@ -354,9 +332,6 @@ int tlsio_cyclonessl_open(CONCRETE_IO_HANDLE tls_io, ON_IO_OPEN_COMPLETE on_io_o
         }
         else
         {
-            tls_io_instance->on_io_open_complete = on_io_open_complete;
-            tls_io_instance->on_io_open_complete_context = on_io_open_complete_context;
-
             tls_io_instance->on_bytes_received = on_bytes_received;
             tls_io_instance->on_bytes_received_context = on_bytes_received_context;
 
@@ -445,7 +420,7 @@ int tlsio_cyclonessl_open(CONCRETE_IO_HANDLE tls_io, ON_IO_OPEN_COMPLETE on_io_o
                             else
                             {
                                 tls_io_instance->tlsio_state = TLSIO_STATE_OPEN;
-                                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_OK);
+                                on_io_open_complete(on_io_open_complete_context, IO_OPEN_OK);
 
                                 result = 0;
                             }
@@ -459,7 +434,7 @@ int tlsio_cyclonessl_open(CONCRETE_IO_HANDLE tls_io, ON_IO_OPEN_COMPLETE on_io_o
     return result;
 }
 
-int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
+int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* on_io_close_complete_context)
 {
     int result = 0;
 
@@ -481,8 +456,6 @@ int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io
         else
         {
             tls_io_instance->tlsio_state = TLSIO_STATE_CLOSING;
-            tls_io_instance->on_io_close_complete = on_io_close_complete;
-            tls_io_instance->on_io_close_complete_context = callback_context;
 
             if (tlsShutdown(tls_io_instance->tlsContext))
             {
@@ -498,7 +471,7 @@ int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io
 
                 if (on_io_close_complete != NULL)
                 {
-                    on_io_close_complete(callback_context);
+                    on_io_close_complete(on_io_close_complete_context);
                 }
 
                 tls_io_instance->tlsio_state = TLSIO_STATE_NOT_OPEN;
@@ -510,7 +483,7 @@ int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io
     return result;
 }
 
-int tlsio_cyclonessl_send(CONCRETE_IO_HANDLE tls_io, const void* buffer, size_t size, ON_SEND_COMPLETE on_send_complete, void* callback_context)
+int tlsio_cyclonessl_send(CONCRETE_IO_HANDLE tls_io, const void* buffer, size_t size, ON_SEND_COMPLETE on_send_complete, void* on_send_complete_context)
 {
     int result;
 
