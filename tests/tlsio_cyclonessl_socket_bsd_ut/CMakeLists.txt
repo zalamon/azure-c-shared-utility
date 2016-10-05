@@ -5,14 +5,14 @@
 cmake_minimum_required(VERSION 2.8.11)
 
 compileAsC11()
-set(theseTestsName tlsio_cyclonessl_socket_win32_ut)
+set(theseTestsName tlsio_cyclonessl_socket_bsd_ut)
 
 set(${theseTestsName}_test_files
 ${theseTestsName}.c
 )
 
 set(${theseTestsName}_c_files
-	../../src/tlsio_cyclonessl.c
+	../../src/tlsio_cyclonessl_socket_bsd.c
 )
 
 set(${theseTestsName}_h_files

@@ -54,7 +54,7 @@ option(compileOption_CXX "passes a string to the command line of the C++ compile
 if(${use_cyclonessl} AND WIN32)
     set(source_c_files ${source_c_files}
         ./src/tlsio_cyclonessl.c
-		./src/tlsio_cyclonessl_socket.c
+		./src/tlsio_cyclonessl_socket_bsd.c
     )
     set(source_h_files ${source_h_files}
         ./inc/tlsio_cyclonessl.h

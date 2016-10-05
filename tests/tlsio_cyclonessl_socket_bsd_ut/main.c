@@ -6,6 +6,6 @@
 int main(void)
 {
     size_t failedTestCount = 0;
-    RUN_TEST_SUITE(tlsio_cyclonessl_socket_win32, failedTestCount);
+    RUN_TEST_SUITE(tlsio_cyclonessl_socket_bsd, failedTestCount);
     return failedTestCount;
 }
