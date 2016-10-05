@@ -5,6 +5,7 @@
 #include "azure_c_shared_utility/xlogging.h"
 #include "socket.h"
 #include "tls.h"
+#include "azure_c_shared_utility/tlsio_cyclonessl_socket.h"
 
 TlsSocket tlsio_cyclonessl_socket_create(const char* hostname, int port)
 {

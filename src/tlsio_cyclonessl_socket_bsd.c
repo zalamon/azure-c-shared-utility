@@ -13,9 +13,10 @@
 
 #include <stdio.h>
 #include "azure_c_shared_utility/xlogging.h"
+#include "azure_c_shared_utility/tlsio_cyclonessl_socket.h"
 #include "tls.h"
 
-TlsSocket tlsio_cyclonessl_socket_create(const char* hostname, int port)
+int tlsio_cyclonessl_socket_create(const char* hostname, int port, TlsSocket* socket)
 {
     TlsSocket result;
     if (hostname == NULL)
@@ -69,5 +70,12 @@ TlsSocket tlsio_cyclonessl_socket_create(const char* hostname, int port)
 
 void tlsio_cyclonessl_socket_destroy(TlsSocket socket)
 {
-    (void)closesocket((SOCKET)socket);
+    if (socket == INVALID_SOCKET)
+    {
+        LogError("Invalid socket\r\n");
+    }
+    else
+    {
+        (void)closesocket((SOCKET)socket);
+    }
 }
