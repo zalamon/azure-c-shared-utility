@@ -27,12 +27,13 @@ tlsio_cyclonessl_create is the implementation provided via tlsio_cyclonessl_get_
 CONCRETE_IO_HANDLE tlsio_cyclonessl_create(void* io_create_parameters);
 ```
 
-**SRS_TLSIO_CYCLONESSL_01_001: [** The tlsio_cyclonessl_create shall create a new instance of the tlsio for Cyclone SSL. **]**
+**SRS_TLSIO_CYCLONESSL_01_001: [** tlsio_cyclonessl_create shall create a new instance of the tlsio for Cyclone SSL. **]**
 **SRS_TLSIO_CYCLONESSL_01_002: [** If io_create_parameters is NULL, tlsio_cyclonessl_create shall fail and return NULL. **]**
 **SRS_TLSIO_CYCLONESSL_01_003: [** io_create_parameters shall be used as a TLSIO_CONFIG\*. **]**
 **SRS_TLSIO_CYCLONESSL_01_004: [** If the hostname member is NULL, then tlsio_cyclonessl_create shall fail and return NULL. **]**
-**SRS_TLSIO_CYCLONESSL_01_005: [** tlsio_cyclonessl_create shal copy the hostname and port values for later use when the openof the underlying socket is needed. **]**
+**SRS_TLSIO_CYCLONESSL_01_005: [** tlsio_cyclonessl_create shall copy the hostname and port values for later use when the open of the underlying socket is needed. **]**
 **SRS_TLSIO_CYCLONESSL_01_006: [** hostname shall be copied by calling mallocAndStrcpy_s. **]**
+**SRS_TLSIO_CYCLONESSL_01_076: [** If allocating memory for the TLS IO instance fails then tlsio_cyclonessl_create shall fail and return NULL. **]**
 **SRS_TLSIO_CYCLONESSL_01_007: [** If mallocAndStrcpy_s fails then tlsio_cyclonessl_create shall fail and return NULL. **]**
 **SRS_TLSIO_CYCLONESSL_01_008: [** tlsio_cyclonessl_create shall initialize the yarrow context by calling yarrowInit. **]**
 **SRS_TLSIO_CYCLONESSL_01_009: [** If yarrowInit fails then tlsio_cyclonessl_create shall return NULL. **]**
@@ -58,6 +59,7 @@ void tlsio_cyclonessl_destroy(CONCRETE_IO_HANDLE tls_io);
 **SRS_TLSIO_CYCLONESSL_01_020: [** If tls_io is NULL, tlsio_cyclonessl_destroy shall do nothing. **]**
 **SRS_TLSIO_CYCLONESSL_01_021: [** tlsio_cyclonessl_destroy shall deinitialize the yarrow context by calling yarrowRelease. **]**
 **SRS_TLSIO_CYCLONESSL_01_022: [** The TLS context shall be freed by calling tlsFree. **]**
+**SRS_TLSIO_CYCLONESSL_01_077: [** All options cached via tlsio_cyclonessl_set_option shall also be freed. **]**
 
 ### tlsio_cyclonessl_open
 
@@ -73,8 +75,8 @@ int tlsio_cyclonessl_open(CONCRETE_IO_HANDLE tls_io, ON_IO_OPEN_COMPLETE on_io_o
 **SRS_TLSIO_CYCLONESSL_01_026: [** If tlsio_cyclonessl_socket_create fails, then tlsio_cyclonessl_open shall return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_01_027: [** The socket created by tlsio_cyclonessl_socket_create shall be assigned to the TLS context by calling tlsSetSocket. **]**
 **SRS_TLSIO_CYCLONESSL_01_028: [** If tlsSetSocket fails then tlsio_cyclonessl_open shall return a non-zero value. **]**
-**SRS_TLSIO_CYCLONESSL_01_029: [** tlsio_cyclonessl_open shall call tlsio_cyclonessl_socket_open to open the underlying socket. **]**
-**SRS_TLSIO_CYCLONESSL_01_030: [** If tlsio_cyclonessl_socket_open fails, then tlsio_cyclonessl_open shall return a non-zero value. **]**
+**SRS_TLSIO_CYCLONESSL_01_078: [** If certificates have been set by using tlsio_cyclonessl_set_option then a call to tlsSetTrustedCaList shall be made to pass the certificates to CycloneSSL. **]**
+**SRS_TLSIO_CYCLONESSL_01_079: [** If tlsSetTrustedCaList fails then tlsio_cyclonessl_open shall return a non-zero value. **]** 
 **SRS_TLSIO_CYCLONESSL_01_031: [** tlsio_cyclonessl_open shall start the TLS handshake by calling tlsConnect. **]**
 **SRS_TLSIO_CYCLONESSL_01_032: [** If tlsConnect fails then tlsio_cyclonessl_open shall return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_01_033: [** If tlsConnect succeeds, the callback on_io_open_complete shall be called, while passing on_io_open_complete_context and IO_OPEN_OK as arguments. **]**
@@ -89,7 +91,7 @@ int tlsio_cyclonessl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io
 ```
 
 **SRS_TLSIO_CYCLONESSL_01_035: [** tlsio_cyclonessl_close shall close the TLS IO and on success it shall return 0. **]**
-**SRS_TLSIO_CYCLONESSL_01_036: [** If any of the arguments tls_io or on_io_close_complete is NULL, tlsio_cyclonessl_close shall fail and return a non-zero value. **]**
+**SRS_TLSIO_CYCLONESSL_01_036: [** If the argument tls_io is NULL, tlsio_cyclonessl_close shall fail and return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_01_037: [** tlsio_cyclonessl_close shall close the TLS connection by calling tlsShutdown. **]**
 **SRS_TLSIO_CYCLONESSL_01_038: [** If tlsShutdown fails, tlsio_cyclonessl_close shall fail and return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_01_039: [** tlsio_cyclonessl_destroy shall destroy the underlying socket by calling tlsio_cyclonessl_socket_destroy. **]**
@@ -125,6 +127,7 @@ void tlsio_cyclonessl_dowork(CONCRETE_IO_HANDLE tls_io)
 **SRS_TLSIO_CYCLONESSL_01_051: [** If the tls_io argument is NULL, tlsio_cyclonessl_dowork shall do nothing. **]**
 **SRS_TLSIO_CYCLONESSL_01_052: [** If the IO is not open (no open has been called or the IO has been closed) then tlsio_cyclonessl_dowork shall do nothing. **]** 
 **SRS_TLSIO_CYCLONESSL_01_053: [** If the IO is open, tlsio_cyclonessl_dowork shall attempt to read 64 bytes from the TLS library by calling tlsRead. **]**
+**SRS_TLSIO_CYCLONESSL_01_080: [** If any bytes are read from CycloneSSL they should be indicated via the on_bytes_received callback passed to tlsio_cyclonessl_open. **]**
 **SRS_TLSIO_CYCLONESSL_01_054: [** The flags argument for tlsRead shall be 0. **]**
 **SRS_TLSIO_CYCLONESSL_01_055: [** If tlsRead fails, the error shall be indicated by calling the on_io_error callback passed in tlsio_cyclonessl_open, while passing the on_io_error_context to the callback. **]**
 **SRS_TLSIO_CYCLONESSL_01_056: [** Also the IO shall be considered in error and any subsequent calls to tlsio_cyclonessl_send shall fail. **]**
@@ -137,7 +140,7 @@ tlsio_cyclonessl_setoption is the implementation provided via tlsio_cyclonessl_g
 int tlsio_cyclonessl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, const void* value)
 ```
 
-**SRS_TLSIO_CYCLONESSL_01_057: [** If any of the arguments ws_io or option_name is NULL tlsio_cyclonessl_setoption shall return a non-zero value. **]**
+**SRS_TLSIO_CYCLONESSL_01_057: [** If any of the arguments tls_io or option_name is NULL tlsio_cyclonessl_setoption shall return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_01_058: [** If the option_name argument indicates an option that is not handled by tlsio_cyclonessl, then tlsio_cyclonessl_setoption shall return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_01_059: [** If the option was handled by tlsio_cyclonessl, then tlsio_cyclonessl_setoption shall return 0. **]**
 
