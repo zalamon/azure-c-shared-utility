@@ -52,14 +52,6 @@ option(compileOption_C "passes a string to the command line of the C compiler" O
 option(compileOption_CXX "passes a string to the command line of the C++ compiler" OFF)
 
 if(${use_cyclonessl} AND WIN32)
-    set(source_c_files ${source_c_files}
-        ./src/tlsio_cyclonessl.c
-		./src/tlsio_cyclonessl_socket_bsd.c
-    )
-    set(source_h_files ${source_h_files}
-        ./inc/tlsio_cyclonessl.h
-		./inc/tlsio_cyclonessl_socket.h
-    )
     set(cyclonessl_c_files
 		$ENV{CycloneSSLDir}/cyclone_ssl/ssl_common.c
 		$ENV{CycloneSSLDir}/cyclone_ssl/tls.c
@@ -118,7 +110,7 @@ if(${use_cyclonessl} AND WIN32)
     include_directories($ENV{CycloneSSLDir}/demo/x86/ssl_client_demo/src/)
 
     set_source_files_properties(${cyclonessl_c_files} PROPERTIES COMPILE_FLAGS "/wd4200 /wd4201 /wd4244 /wd4100 /wd4267 /wd4701 /wd4703 /wd4389 /wd4005")
-    set_source_files_properties(./src/tlsio_cyclonessl.c PROPERTIES COMPILE_FLAGS "/wd4200 /wd4201 /wd4244 /wd4100 /wd4267 /wd4701 /wd4703 /wd4389 /wd4005 /wd4996")
+    set_source_files_properties(./src/tlsio_cyclonessl.c ./src/tlsio_cyclonessl_socket_bsd.c PROPERTIES COMPILE_FLAGS "/wd4200 /wd4201 /wd4244 /wd4100 /wd4267 /wd4701 /wd4703 /wd4389 /wd4005 /wd4996")
 	add_library(cyclonessl ${cyclonessl_c_files})
 
 endif()
@@ -830,7 +822,8 @@ endif()
 if(${use_cyclonessl} AND WIN32)
     set(source_c_files ${source_c_files}
         ./src/tlsio_cyclonessl.c
-    )
+        ./src/tlsio_cyclonessl_socket_bsd.c
+        )
 endif()
 
 #these are the C headers
@@ -919,6 +912,7 @@ endif()
 if(${use_cyclonessl} AND WIN32)
     set(source_h_files ${source_h_files}
         ./inc/azure_c_shared_utility/tlsio_cyclonessl.h
+        ./inc/azure_c_shared_utility/tlsio_cyclonessl_socket.h
         )
 endif()
 
