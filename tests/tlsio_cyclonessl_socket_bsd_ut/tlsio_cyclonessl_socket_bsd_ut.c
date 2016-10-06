@@ -28,10 +28,12 @@
 #endif
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "testrunnerswitcher.h"
 #include "umock_c.h"
 #include "umocktypes_charptr.h"
+#include "umock_c_negative_tests.h"
 
 static TEST_MUTEX_HANDLE g_testByTest;
 static TEST_MUTEX_HANDLE g_dllByDll;
@@ -50,10 +52,10 @@ void my_gballoc_free(void* ptr)
 
 #define ENABLE_MOCKS
 
-#include "azure_c_shared_utility/gballoc.h"
-
 SOCKET TEST_SOCKET = (SOCKET)0x4243;
-struct hostent* TEST_HOST_ENT = (struct hostent*)0x4244;
+static const struct sockaddr test_sock_addr = { 0 };
+static ADDRINFO TEST_ADDR_INFO = { AI_PASSIVE, AF_INET, SOCK_STREAM, IPPROTO_TCP, 128, NULL, (struct sockaddr*)&test_sock_addr, NULL };
+static bool g_addrinfo_call_fail;
 
 MOCK_FUNCTION_WITH_CODE(WSAAPI, SOCKET, socket, int, af, int, type, int, protocol)
 MOCK_FUNCTION_END(TEST_SOCKET)
@@ -63,10 +65,22 @@ MOCK_FUNCTION_WITH_CODE(WSAAPI, int, connect, SOCKET, s, const struct sockaddr*,
 MOCK_FUNCTION_END(0)
 MOCK_FUNCTION_WITH_CODE(WSAAPI, int, WSAGetLastError)
 MOCK_FUNCTION_END(0)
-MOCK_FUNCTION_WITH_CODE(WSAAPI, struct hostent*, gethostbyname, const char*, name);
-MOCK_FUNCTION_END(TEST_HOST_ENT)
-MOCK_FUNCTION_WITH_CODE(WSAAPI, INT, getaddrinfo, PCSTR, pNodeName, PCSTR, pServiceName, const ADDRINFOA*, pHints, PADDRINFOA*, ppResult)
-MOCK_FUNCTION_END(0)
+MOCK_FUNCTION_WITH_CODE(WSAAPI, int, getaddrinfo, PCSTR, pNodeName, PCSTR, pServiceName, const ADDRINFOA*, pHints, PADDRINFOA*, ppResult)
+    int callFail;
+    if (!g_addrinfo_call_fail)
+    {
+        *ppResult = (PADDRINFOA)malloc(sizeof(ADDRINFOA));
+        (void)memcpy(*ppResult, &TEST_ADDR_INFO, sizeof(ADDRINFOA));
+        callFail = 0;
+    }
+    else
+    {
+        *ppResult = NULL;
+        callFail = __LINE__;
+    }
+MOCK_FUNCTION_END(callFail)
+
+#include "azure_c_shared_utility/gballoc.h"
 
 #undef ENABLE_MOCKS
 
@@ -96,6 +110,7 @@ TEST_SUITE_INITIALIZE(suite_init)
 
     REGISTER_UMOCK_ALIAS_TYPE(TlsSocket, void*);
     REGISTER_UMOCK_ALIAS_TYPE(PCSTR, const char*);
+    REGISTER_UMOCK_ALIAS_TYPE(SOCKET, void*);
 
     REGISTER_GLOBAL_MOCK_HOOK(gballoc_malloc, my_gballoc_malloc);
     REGISTER_GLOBAL_MOCK_HOOK(gballoc_free, my_gballoc_free);
@@ -116,6 +131,7 @@ TEST_FUNCTION_INITIALIZE(TestMethodInitialize)
         ASSERT_FAIL("our mutex is ABANDONED. Failure in test framework");
     }
 
+    g_addrinfo_call_fail = false;
     umock_c_reset_all_calls();
 }
 
@@ -127,12 +143,19 @@ TEST_FUNCTION_CLEANUP(TestMethodCleanup)
 /* tlsio_cyclonessl_socket_create */
 
 /* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_001: [ tlsio_cyclonessl_socket_create shall create a new socket to be used by CycloneSSL. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [ On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the socket out argument. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_003: [ tlsio_cyclonessl_socket_create shall call socket to create a TCP socket. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_004: [ tlsio_cyclonessl_socket_create shall call getaddrinfo to obtain a hint ADDRINFO. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_006: [ tlsio_cyclonessl_socket_create shall call connect and pass the constructed address in order to connect the socket. ]*/
 TEST_FUNCTION(tlsio_cyclonessl_socket_create_succeeds)
 {
     ///arrange
     TlsSocket socket;
 
     STRICT_EXPECTED_CALL(socket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+    EXPECTED_CALL(getaddrinfo(IGNORED_PTR_ARG, IGNORED_PTR_ARG, &TEST_ADDR_INFO, IGNORED_PTR_ARG));
+    EXPECTED_CALL(connect(TEST_SOCKET, &test_sock_addr, IGNORED_NUM_ARG))
+        .ValidateArgument_s();
 
     ///act
     int result = tlsio_cyclonessl_socket_create("testhostname", 4242, &socket);
@@ -140,6 +163,107 @@ TEST_FUNCTION(tlsio_cyclonessl_socket_create_succeeds)
     ///assert
     ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
     ASSERT_ARE_EQUAL(int, 0, result);
+
+    ///cleanup
+    tlsio_cyclonessl_socket_destroy(socket);
+}
+
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
+TEST_FUNCTION(tlsio_cyclonessl_socket_create_with_NULL_hostname_fails)
+{
+    ///arrange
+    TlsSocket socket;
+
+    ///act
+    int result = tlsio_cyclonessl_socket_create(NULL, 4242, &socket);
+
+    ///assert
+    ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+    ASSERT_ARE_NOT_EQUAL(int, 0, result);
+}
+
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
+TEST_FUNCTION(tlsio_cyclonessl_socket_create_with_NULL_socket_fails)
+{
+    ///arrange
+
+    ///act
+    int result = tlsio_cyclonessl_socket_create("testhostname", 4242, NULL);
+
+    ///assert
+    ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+    ASSERT_ARE_NOT_EQUAL(int, 0, result);
+}
+
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_007: [ If any of the socket calls fails, then tlsio_cyclonessl_socket_create shall fail and return a non-zero value. ]*/
+TEST_FUNCTION(when_a_failure_occurs_for_tlsio_cyclonessl_socket_create_then_create_fails)
+{
+    ///arrange
+    int negativeTestsInitResult = umock_c_negative_tests_init();
+    ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+    TlsSocket socket;
+
+    STRICT_EXPECTED_CALL(socket(AF_INET, SOCK_STREAM, IPPROTO_TCP))
+        .SetFailReturn((SOCKET)-1);
+    EXPECTED_CALL(getaddrinfo(IGNORED_PTR_ARG, IGNORED_PTR_ARG, &TEST_ADDR_INFO, IGNORED_PTR_ARG))
+        .SetFailReturn(-1);
+    EXPECTED_CALL(connect(TEST_SOCKET, &test_sock_addr, IGNORED_NUM_ARG))
+        .ValidateArgument_s()
+        .SetFailReturn(-1);
+
+    umock_c_negative_tests_snapshot();
+
+    for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
+    {
+        umock_c_negative_tests_reset();
+        umock_c_negative_tests_fail_call(i);
+
+        char temp_str[128];
+        (void)sprintf(temp_str, "On failed call %zu", i);
+
+        ///act
+        int result = tlsio_cyclonessl_socket_create("testhostname", 4242, &socket);
+
+        ///assert
+        ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, 0, result, temp_str);
+    }
+
+    ///cleanup
+    umock_c_negative_tests_deinit();
+}
+
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_009: [ tlsio_cyclonessl_socket_destroy shall close the socket passed as argument by calling the function close. ]*/
+TEST_FUNCTION(tlsio_cyclonessl_socket_destroy_closes_the_socket)
+{
+    ///arrange
+    TlsSocket socket;
+
+    STRICT_EXPECTED_CALL(socket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+    EXPECTED_CALL(getaddrinfo(IGNORED_PTR_ARG, IGNORED_PTR_ARG, &TEST_ADDR_INFO, IGNORED_PTR_ARG));
+    EXPECTED_CALL(connect(TEST_SOCKET, &test_sock_addr, IGNORED_NUM_ARG))
+        .ValidateArgument_s();
+    int result = tlsio_cyclonessl_socket_create("testhostname", 4242, &socket);
+    umock_c_reset_all_calls();
+
+    STRICT_EXPECTED_CALL(closesocket(TEST_SOCKET));
+
+    ///act
+    tlsio_cyclonessl_socket_destroy(socket);
+
+    ///assert
+    ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+}
+
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_010: [ If socket is INVALID_SOCKET (-1), tlsio_cyclonessl_socket_destroy shall do nothing. ]*/
+TEST_FUNCTION(tlsio_cyclonessl_socket_destroy_with_invalid_socket_does_nothing)
+{
+    ///arrange
+
+    ///act
+    tlsio_cyclonessl_socket_destroy((TlsSocket)-1);
+
+    ///assert
+    ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 }
 
 END_TEST_SUITE(tlsio_cyclonessl_socket_bsd_unittests)

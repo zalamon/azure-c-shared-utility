@@ -17,21 +17,26 @@
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/tlsio_cyclonessl_socket.h"
 
+/* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_001: [ tlsio_cyclonessl_socket_create shall create a new socket to be used by CycloneSSL. ]*/
 int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsSocket* new_socket)
 {
     TlsSocket result;
-    if (hostname == NULL)
+
+    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
+    if ((hostname == NULL) ||
+        (new_socket == NULL))
     {
-        LogError("NULL hostname");
-        result = (TlsSocket)NULL;
+        LogError("Invalid arguments: hostname = %p, new_socket = %p", hostname, new_socket);
+        result = __LINE__;
     }
     else
     {
+        /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_003: [ tlsio_cyclonessl_socket_create shall call socket to create a TCP socket. ]*/
         SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        if (sock < 0)
+        if (sock == (SOCKET)-1)
         {
             LogError("Error: Cannot create socket (%d)\r\n", WSAGetLastError());
-            result = (TlsSocket)NULL;
+            result = __LINE__;
         }
         else
         {
@@ -42,6 +47,8 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
             addrHint.ai_family = AF_INET;
             addrHint.ai_socktype = SOCK_STREAM;
             addrHint.ai_protocol = 0;
+
+            /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_004: [ tlsio_cyclonessl_socket_create shall call getaddrinfo to obtain a hint ADDRINFO. ]*/
             if ((sprintf(portString, "%u", port) < 0) ||
                 (getaddrinfo(hostname, portString, &addrHint, &addrInfo) != 0))
             {
@@ -51,6 +58,7 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
             }
             else
             {
+                /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_006: [ tlsio_cyclonessl_socket_create shall call connect and pass the constructed address in order to connect the socket. ]*/
                 if (connect(sock, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) < 0)
                 {
                     LogError("Error: Failed to connect (%d)\r\n", WSAGetLastError());
@@ -59,6 +67,7 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
                 }
                 else
                 {
+                    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [ On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the socket out argument. ]*/
                     *new_socket = (TlsSocket)sock;
                     result = 0;
                 }
@@ -71,12 +80,14 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
 
 void tlsio_cyclonessl_socket_destroy(TlsSocket socket)
 {
-    if (socket == INVALID_SOCKET)
+    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_010: [ If socket is INVALID_SOCKET (-1), tlsio_cyclonessl_socket_destroy shall do nothing. ]*/
+    if (socket == (SOCKET)-1)
     {
         LogError("Invalid socket\r\n");
     }
     else
     {
+        /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_009: [ tlsio_cyclonessl_socket_destroy shall close the socket passed as argument by calling the function close. ]*/
         (void)closesocket((SOCKET)socket);
     }
 }
