@@ -12,7 +12,6 @@ set(${theseTestsName}_test_files
 
 set(${theseTestsName}_c_files
 	../../src/tlsio_cyclonessl_socket_bsd.c
-	socket_mocks.c
 )
 
 set(${theseTestsName}_h_files
