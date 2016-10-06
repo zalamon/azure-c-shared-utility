@@ -12,9 +12,12 @@ set(${theseTestsName}_test_files
 
 set(${theseTestsName}_c_files
 	../../src/tlsio_cyclonessl_socket_bsd.c
+	socket_mocks.c
 )
 
 set(${theseTestsName}_h_files
 )
+
+set_source_files_properties(../../src/tlsio_cyclonessl_socket_bsd.c PROPERTIES COMPILE_FLAGS "/wd4200 /wd4201 /wd4244 /wd4100 /wd4267 /wd4701 /wd4703 /wd4389 /wd4005 /wd4996")
 
 build_c_test_artifacts(${theseTestsName} ON "tests/azure_c_shared_utility_tests")

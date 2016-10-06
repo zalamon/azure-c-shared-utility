@@ -149,11 +149,13 @@ BEGIN_TEST_SUITE(tlsio_cyclonessl_unittests)
 
 TEST_SUITE_INITIALIZE(suite_init)
 {
+    int result;
+
     TEST_INITIALIZE_MEMORY_DEBUG(g_dllByDll);
     g_testByTest = TEST_MUTEX_CREATE();
     ASSERT_IS_NOT_NULL(g_testByTest);
 
-    int result = umock_c_init(on_umock_c_error);
+    result = umock_c_init(on_umock_c_error);
     ASSERT_ARE_EQUAL(int, 0, result);
     result = umocktypes_charptr_register_types();
     ASSERT_ARE_EQUAL(int, 0, result);

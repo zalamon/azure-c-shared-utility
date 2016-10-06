@@ -9,14 +9,15 @@
 #if _WIN32
 #define _WINERROR_
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #endif
 
 #include <stdio.h>
+#include "tls.h"
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/tlsio_cyclonessl_socket.h"
-#include "tls.h"
 
-int tlsio_cyclonessl_socket_create(const char* hostname, int port, TlsSocket* socket)
+int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsSocket* new_socket)
 {
     TlsSocket result;
     if (hostname == NULL)
@@ -34,24 +35,23 @@ int tlsio_cyclonessl_socket_create(const char* hostname, int port, TlsSocket* so
         }
         else
         {
-            HOSTENT *host;
-            host = gethostbyname(hostname);
-            if (!host)
+            char portString[16];
+            ADDRINFO addrHint = { 0 };
+            ADDRINFO* addrInfo = NULL;
+
+            addrHint.ai_family = AF_INET;
+            addrHint.ai_socktype = SOCK_STREAM;
+            addrHint.ai_protocol = 0;
+            if ((sprintf(portString, "%u", port) < 0) ||
+                (getaddrinfo(hostname, portString, &addrHint, &addrInfo) != 0))
             {
-                LogError("Error: Cannot resolve server name (%d)\r\n", WSAGetLastError());
-                closesocket(sock);
-                result = (TlsSocket)NULL;
+                LogError("Failure: getaddrinfo failure %d.", WSAGetLastError());
+                (void)closesocket(sock);
+                result = __LINE__;
             }
             else
             {
-                SOCKADDR_IN addr;
-
-                //Destination address
-                addr.sin_family = host->h_addrtype;
-                memcpy(&addr.sin_addr, host->h_addr, host->h_length);
-                addr.sin_port = htons(port);
-
-                if (connect(sock, (PSOCKADDR)&addr, sizeof(addr)) < 0)
+                if (connect(sock, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) < 0)
                 {
                     LogError("Error: Failed to connect (%d)\r\n", WSAGetLastError());
                     closesocket(sock);
