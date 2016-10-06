@@ -3,14 +3,13 @@
 
 #include <stdlib.h>
 #include "azure_c_shared_utility/xlogging.h"
-#include "socket.h"
 #include "tls.h"
 #include "azure_c_shared_utility/tlsio_cyclonessl_socket.h"
 
 /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_01_001: [ tlsio_cyclonessl_socket_create shall create a new socket to be used by CycloneSSL. ]*/
 int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsSocket* new_socket)
 {
-    TlsSocket result;
+    int result;
 
     /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_01_003: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
     if ((hostname == NULL) ||

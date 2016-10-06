@@ -22,7 +22,6 @@ CycloneSSL headers are in the include directlroy list. */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <crtdbg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "azure_c_shared_utility/gballoc.h"

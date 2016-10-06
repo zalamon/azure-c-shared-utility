@@ -20,7 +20,7 @@
 /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_001: [ tlsio_cyclonessl_socket_create shall create a new socket to be used by CycloneSSL. ]*/
 int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsSocket* new_socket)
 {
-    TlsSocket result;
+    int result;
 
     /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or new_socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
     if ((hostname == NULL) ||
