@@ -22,7 +22,7 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
 {
     TlsSocket result;
 
-    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
+    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or new_socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
     if ((hostname == NULL) ||
         (new_socket == NULL))
     {
@@ -35,6 +35,7 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
         SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (sock == (SOCKET)-1)
         {
+            /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_007: [ If any of the socket calls fails, then tlsio_cyclonessl_socket_create shall fail and return a non-zero value. ]*/
             LogError("Error: Cannot create socket (%d)\r\n", WSAGetLastError());
             result = __LINE__;
         }
@@ -52,6 +53,7 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
             if ((sprintf(portString, "%u", port) < 0) ||
                 (getaddrinfo(hostname, portString, &addrHint, &addrInfo) != 0))
             {
+                /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_007: [ If any of the socket calls fails, then tlsio_cyclonessl_socket_create shall fail and return a non-zero value. ]*/
                 LogError("Failure: getaddrinfo failure %d.", WSAGetLastError());
                 (void)closesocket(sock);
                 result = __LINE__;
@@ -61,13 +63,14 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
                 /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_006: [ tlsio_cyclonessl_socket_create shall call connect and pass the constructed address in order to connect the socket. ]*/
                 if (connect(sock, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) < 0)
                 {
+                    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_007: [ If any of the socket calls fails, then tlsio_cyclonessl_socket_create shall fail and return a non-zero value. ]*/
                     LogError("Error: Failed to connect (%d)\r\n", WSAGetLastError());
                     closesocket(sock);
                     result = __LINE__;
                 }
                 else
                 {
-                    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [ On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the socket out argument. ]*/
+                    /* Codes_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [ On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the new_socket out argument. ]*/
                     *new_socket = (TlsSocket)sock;
                     result = 0;
                 }

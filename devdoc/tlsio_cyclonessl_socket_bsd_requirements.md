@@ -12,20 +12,19 @@ tlsio_cyclonessl_socket provides an implementation for creating/destroying BSD s
 ## Exposed API
 
 ```c
-MOCKABLE_FUNCTION(, int, tlsio_cyclonessl_socket_create, const char*, hostname, int, port, TlsSocket* socket);
+MOCKABLE_FUNCTION(, int, tlsio_cyclonessl_socket_create, const char*, hostname, int, port, TlsSocket* new_socket);
 MOCKABLE_FUNCTION(, void, tlsio_cyclonessl_socket_destroy, TlsSocket, socket);
 ```
-
 
 ### tlsio_cyclonessl_socket_create
 
 ```c
-int tlsio_cyclonessl_socket_create(const char* hostname, int port, TlsSocket* socket);
+int tlsio_cyclonessl_socket_create(const char* hostname, int port, TlsSocket* new_socket);
 ```
 
 **SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_001: [** tlsio_cyclonessl_socket_create shall create a new socket to be used by CycloneSSL. **]**
-**SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [** On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the socket out argument. **]**
-**SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [** If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. **]**
+**SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [** On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the new_socket out argument. **]**
+**SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [** If hostname or new_socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. **]**
 **SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_003: [** tlsio_cyclonessl_socket_create shall call socket to create a TCP socket. **]**
 **SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_004: [** tlsio_cyclonessl_socket_create shall call getaddrinfo to obtain a hint ADDRINFO. **]**
 **SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_006: [** tlsio_cyclonessl_socket_create shall call connect and pass the constructed address in order to connect the socket. **]**

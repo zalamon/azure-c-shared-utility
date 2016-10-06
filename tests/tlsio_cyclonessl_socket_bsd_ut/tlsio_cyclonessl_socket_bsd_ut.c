@@ -143,7 +143,7 @@ TEST_FUNCTION_CLEANUP(TestMethodCleanup)
 /* tlsio_cyclonessl_socket_create */
 
 /* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_001: [ tlsio_cyclonessl_socket_create shall create a new socket to be used by CycloneSSL. ]*/
-/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [ On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the socket out argument. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_008: [ On success tlsio_cyclonessl_socket_create shall return 0 and fill in the socket handle in the new_socket out argument. ]*/
 /* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_003: [ tlsio_cyclonessl_socket_create shall call socket to create a TCP socket. ]*/
 /* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_004: [ tlsio_cyclonessl_socket_create shall call getaddrinfo to obtain a hint ADDRINFO. ]*/
 /* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_006: [ tlsio_cyclonessl_socket_create shall call connect and pass the constructed address in order to connect the socket. ]*/
@@ -168,7 +168,7 @@ TEST_FUNCTION(tlsio_cyclonessl_socket_create_succeeds)
     tlsio_cyclonessl_socket_destroy(socket);
 }
 
-/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or new_socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
 TEST_FUNCTION(tlsio_cyclonessl_socket_create_with_NULL_hostname_fails)
 {
     ///arrange
@@ -182,7 +182,7 @@ TEST_FUNCTION(tlsio_cyclonessl_socket_create_with_NULL_hostname_fails)
     ASSERT_ARE_NOT_EQUAL(int, 0, result);
 }
 
-/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
+/* Tests_SRS_TLSIO_CYCLONESSL_SOCKET_BSD_01_002: [ If hostname or new_socket is NULL, then tlsio_cyclonessl_socket_create shall fail and it shall return a non-zero value. ]*/
 TEST_FUNCTION(tlsio_cyclonessl_socket_create_with_NULL_socket_fails)
 {
     ///arrange
