@@ -55,11 +55,12 @@ int tlsio_cyclonessl_socket_create(const char* hostname, unsigned int port, TlsS
                 {
                     LogError("Error: Failed to connect (%d)\r\n", WSAGetLastError());
                     closesocket(sock);
-                    result = (TlsSocket)NULL;
+                    result = __LINE__;
                 }
                 else
                 {
-                    result = (TlsSocket)sock;
+                    *new_socket = (TlsSocket)sock;
+                    result = 0;
                 }
             }
         }
